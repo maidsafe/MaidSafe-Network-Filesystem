@@ -19,41 +19,59 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 cmake_minimum_required(VERSION 2.8.7 FATAL_ERROR)
 project(nfs)
 
+set(PROTO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
+file(GLOB PROTO_FILES RELATIVE ${PROTO_SOURCE_DIR} "${PROTO_SOURCE_DIR}/maidsafe/nfs/*.proto")
 include(../../cmake_modules/maidsafe_standard_setup.cmake)
 
 include_directories(${common_SOURCE_DIR}/include)
+include_directories(${passport_SOURCE_DIR}/include)
 include_directories(${private_SOURCE_DIR}/include)
 include_directories(${routing_SOURCE_DIR}/include)
+include_directories(${rudp_SOURCE_DIR}/include)
 
 
 ###################################################################################################
 # Set up all files as GLOBs                                                                       #
 ###################################################################################################
-file(GLOB SOURCE_FILES_NFS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/nfs/*.cc")
-file(GLOB HEADER_FILES_NFS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/nfs/*.h")
-file(GLOB API_FILES_NFS_DIR "${PROJECT_SOURCE_DIR}/include/maidsafe/nfs/*.h")
-set(ALL_FILES_nfs_DIR ${SOURCE_FILES_nfs_DIR} ${HEADER_FILES_nfs_DIR} ${API_FILES_nfs_DIR})
-source_group("nfs Source Files" FILES ${SOURCE_FILES_nfs_DIR})
-source_group("nfs Header Files" FILES ${HEADER_FILES_nfs_DIR})
-source_group("nfs API Files" FILES ${API_FILES_nfs_DIR})
+file(GLOB NfsApi ${PROJECT_SOURCE_DIR}/include/maidsafe/nfs/*.h)
 
-file(GLOB SOURCE_FILES_NFS_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/nfs/tests/*.cc")
-file(GLOB HEADER_FILES_NFS_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/nfs/tests/*.h")
-set(ALL_FILES_NFS_TESTS_DIR ${SOURCE_FILES_nfs_TESTS_DIR} ${HEADER_FILES_nfs_TESTS_DIR})
-source_group("Tests Source Files" FILES ${SOURCE_FILES_nfs_TESTS_DIR})
-source_group("Tests Header Files" FILES ${HEADER_FILES_nfs_TESTS_DIR})
+set(NfsSourcesRootDir ${PROJECT_SOURCE_DIR}/src/maidsafe/nfs)
+file(GLOB NfsSources ${NfsSourcesRootDir}/*.cc)
+file(GLOB NfsHeaders ${NfsSourcesRootDir}/*.h)
 
-set(STYLE_nfs ${ALL_FILES_nfs_DIR} ${ALL_FILES_nfs_TESTS_DIR})
+file(GLOB NfsProtos ${NfsSourcesRootDir}/*.proto)
+file(GLOB NfsProtoSources ${NfsSourcesRootDir}/*.pb.cc)
+file(GLOB NfsProtoHeaders ${NfsSourcesRootDir}/*pb.h)
+list(REMOVE_ITEM NfsSources ${NfsProtoSources})
+list(REMOVE_ITEM NfsHeaders ${NfsProtoHeaders})
+
+source_group("NFS API Files" FILES ${NfsApi})
+source_group("NFS Source Files" FILES ${NfsSources})
+source_group("NFS Header Files" FILES ${NfsHeaders})
+source_group("NFS Proto Files" FILES ${NfsProtos} ${NfsProtoSources} ${NfsProtoHeaders})
+
+set(NfsAllFiles ${NfsApi} ${NfsSources} ${NfsHeaders} ${NfsProtos} ${NfsProtoSources} ${NfsProtoHeaders})
+
+####    TESTS    ####
+file(GLOB NfsTestsSources ${NfsSourcesRootDir}/tests/*.cc)
+file(GLOB NfsTestsHeaders ${NfsSourcesRootDir}/tests/*.h)
+set(NfsTestsAllFiles ${NfsTestsSources} ${NfsTestsHeaders})
+source_group("Tests Source Files" FILES ${NfsTestsSources})
+source_group("Tests Header Files" FILES ${NfsTestsHeaders})
+
+set(StyleAllFiles ${NfsAllFiles} ${NfsTestsAllFiles})
+list(REMOVE_ITEM StyleAllFiles ${NfsProtos} ${NfsProtoSources} ${NfsProtoHeaders})
+
 
 ###################################################################################################
 # Define MaidSafe libraries and executables                                                       #
 ###################################################################################################
-ms_add_static_library(nfs ${ALL_FILES_nfs_DIR})
-target_link_libraries(maidsafe_nfs maidsafe_common maidsafe_utilities)
+ms_add_static_library(nfs ${NfsAllFiles})
+target_link_libraries(maidsafe_nfs maidsafe_routing)
 
 if(MAIDSAFE_TESTING)
-  ms_add_executable(TESTnfs "Tests/nfs" ${ALL_FILES_nfs_TESTS_DIR})
-  target_link_libraries(TESTnfs maidsafe_common maidsafe_private maidsafe_routing)
+  ms_add_executable(TESTnfs "Tests/NFS" ${NfsTestsAllFiles})
+  target_link_libraries(TESTnfs maidsafe_nfs maidsafe_private)
 endif()
 
 rename_outdated_built_exes()
@@ -64,15 +82,21 @@ rename_outdated_built_exes()
 ###################################################################################################
 include(maidsafe_standard_flags)
 
+ms_disable_warnings(${NfsProtoSources})
+
+if(UNIX)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-effc++")
+endif()
+
 
 ###################################################################################################
 # Tests                                                                                           #
 ###################################################################################################
 if(MAIDSAFE_TESTING)
-  add_style_test(${STYLE_nfs})
+  add_style_test(${StyleAllFiles})
   add_gtests(TESTnfs)
-  # label_as_critical_tests(IdentityPacketsTest.BEH_Full
-    #IdentityPacketsTest.BEH_ChangeDetails
+# label_as_critical_tests(IdentityPacketsTest.BEH_Full
+                          #IdentityPacketsTest.BEH_ChangeDetails
                           #nfsTest.BEH_SigningPackets
                           #nfsTest.BEH_IdentityPackets
                           #nfsTest.BEH_ChangingIdentityPackets
