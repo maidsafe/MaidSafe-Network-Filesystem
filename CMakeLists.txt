@@ -49,6 +49,16 @@ ms_glob_dir(Nfs ${NfsSourcesDir} Nfs)
 ms_glob_dir(NfsClient ${NfsSourcesDir}/client "Nfs Client")
 ms_glob_dir(NfsVault ${NfsSourcesDir}/vault "Nfs Vault")
 ms_glob_dir(NfsTests ${NfsSourcesDir}/tests Tests)
+set(NfsTestsMain ${NfsSourcesDir}/tests/tests_main.cc)
+set(NfsNetworkTestsAllFiles ${NfsSourcesDir}/tests/data_getter_test.cc
+                            ${NfsSourcesDir}/tests/maid_node_nfs_test.h
+                            ${NfsSourcesDir}/tests/maid_node_nfs_test.cc
+                            ${NfsTestsMain})
+set(NfsWeeklyNetworkTestsAllFiles ${NfsSourcesDir}/tests/maid_node_nfs_test.h
+                                  ${NfsSourcesDir}/tests/maid_node_nfs_lengthy_test.cc
+                                  ${NfsTestsMain})
+list(REMOVE_ITEM NfsTestsAllFiles ${NfsNetworkTestsAllFiles} ${NfsWeeklyNetworkTestsAllFiles})
+list(APPEND NfsTestsAllFiles ${NfsTestsMain})
 
 
 #==================================================================================================#
@@ -65,10 +75,22 @@ target_link_libraries(maidsafe_nfs_client maidsafe_nfs_vault maidsafe_nfs_core)
 target_link_libraries(maidsafe_nfs_vault maidsafe_nfs_client maidsafe_nfs_core)
 
 if(MaidsafeTesting)
-  ms_add_executable(TESTnfs "Tests/NFS" ${NfsTestsAllFiles})
-  target_link_libraries(TESTnfs maidsafe_nfs_core maidsafe_nfs_client maidsafe_nfs_vault)
+  ms_add_executable(test_nfs "Tests/NFS" ${NfsTestsAllFiles})
+  target_link_libraries(test_nfs maidsafe_nfs_core maidsafe_nfs_client maidsafe_nfs_vault maidsafe_test)
   # TODO - Investigate why boost variant requires this warning to be disabled.
-  target_compile_options(TESTnfs PRIVATE $<$<AND:$<BOOL:${MSVC}>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/wd4702>)
+  target_compile_options(test_nfs PRIVATE $<$<AND:$<BOOL:${MSVC}>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/wd4702>)
+
+  ms_add_executable(network_test_nfs "Tests/NFS" ${NfsNetworkTestsAllFiles})
+  target_link_libraries(network_test_nfs maidsafe_nfs_core maidsafe_nfs_client maidsafe_nfs_vault maidsafe_test)
+  # TODO - Investigate why boost variant requires this warning to be disabled.
+  target_compile_options(network_test_nfs PRIVATE $<$<AND:$<BOOL:${MSVC}>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/wd4702>)
+  target_include_directories(network_test_nfs PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
+  ms_add_executable(weekly_network_test_nfs "Tests/NFS" ${NfsWeeklyNetworkTestsAllFiles})
+  target_link_libraries(weekly_network_test_nfs maidsafe_nfs_core maidsafe_nfs_client maidsafe_nfs_vault maidsafe_test)
+  # TODO - Investigate why boost variant requires this warning to be disabled.
+  target_compile_options(weekly_network_test_nfs PRIVATE $<$<AND:$<BOOL:${MSVC}>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/wd4702>)
+  target_include_directories(weekly_network_test_nfs PRIVATE ${PROJECT_SOURCE_DIR}/src)
 endif()
 
 ms_rename_outdated_built_exes()
@@ -84,9 +106,13 @@ include(standard_flags)
 # Tests                                                                                            #
 #==================================================================================================#
 if(MaidsafeTesting)
-  ms_add_style_test()
-  ms_add_gtests(TESTnfs)
-  ms_add_project_experimental()
+  ms_add_default_tests()
+  ms_add_gtests(test_nfs)
+  ms_add_network_gtests(network_test_nfs)
+  if(WEEKLY)
+    ms_add_network_gtests(weekly_network_test_nfs)
+    set_property(TEST MaidNodeNfsTest.FUNC_PopulateLengthyTree PROPERTY TIMEOUT 5000)
+  endif()
   ms_test_summary_output()
 endif()
 
@@ -94,13 +120,10 @@ endif()
 #==================================================================================================#
 # Package                                                                                          #
 #==================================================================================================#
-set(EXPORT_NAME maidsafe_nfs_core)
-install(TARGETS maidsafe_nfs_core EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
-set(EXPORT_NAME maidsafe_nfs_client)
-install(TARGETS maidsafe_nfs_client EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
-set(EXPORT_NAME maidsafe_nfs_vault)
-install(TARGETS maidsafe_nfs_vault EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
+install(TARGETS maidsafe_nfs_core maidsafe_nfs_client maidsafe_nfs_vault COMPONENT Development CONFIGURATIONS Debug Release ARCHIVE DESTINATION lib)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ COMPONENT Development DESTINATION include)
 
-install(FILES ${NfsApi} DESTINATION include/maidsafe/nfs)
-install(FILES ${NfsClientApi} DESTINATION include/maidsafe/nfs/client)
-install(FILES ${NfsVaultApi} DESTINATION include/maidsafe/nfs/vault)
+if(MaidsafeTesting)
+  install(TARGETS test_nfs network_test_nfs weekly_network_test_nfs COMPONENT Tests CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
+  install(TARGETS test_nfs network_test_nfs weekly_network_test_nfs COMPONENT Tests CONFIGURATIONS Release RUNTIME DESTINATION bin)
+endif()

@@ -25,10 +25,20 @@
 #include <string>
 #include <vector>
 
+#include "boost/signals2/signal.hpp"
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif
+
 #include "boost/thread/future.hpp"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/data_types/structured_data_versions.h"
+#include "maidsafe/passport/passport.h"
 #include "maidsafe/passport/types.h"
 #include "maidsafe/routing/parameters.h"
 #include "maidsafe/routing/routing_api.h"
@@ -44,21 +54,27 @@
 
 namespace maidsafe {
 
+namespace vault_manager { namespace tools { class PublicPmidStorer; } }
+
 namespace nfs_client {
 
-class MaidNodeNfs {
+class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
  public:
   typedef boost::future<std::vector<StructuredDataVersions::VersionName>> VersionNamesFuture;
   typedef boost::future<std::unique_ptr<StructuredDataVersions::VersionName>> PutVersionFuture;
   typedef boost::future<uint64_t> PmidHealthFuture;
+  typedef boost::signals2::signal<void(int32_t)> OnNetworkHealthChange;
 
-  MaidNodeNfs(AsioService& asio_service, routing::Routing& routing,
-              passport::PublicPmid::Name pmid_node_hint =
-                  passport::PublicPmid::Name(Identity(RandomString(64))));
+  // Logging in for already existing maid accounts
+  static std::shared_ptr<MaidNodeNfs> MakeShared(const passport::Maid& maid);
+  // Creates maid account and logs in. Throws on failure to create account.
+  static std::shared_ptr<MaidNodeNfs> MakeShared(const passport::MaidAndSigner& maid_and_signer);
+  // Disconnects from network and all unfinished tasks will be cancelled
+  void Stop();
 
-  passport::PublicPmid::Name pmid_node_hint() const;
-  void set_pmid_node_hint(const passport::PublicPmid::Name& pmid_node_hint);
+  OnNetworkHealthChange& network_health_change_signal();
 
+  //========================== Data accessors and mutators =========================================
   template <typename DataName>
   boost::future<typename DataName::data_type> Get(
       const DataName& data_name,
@@ -108,14 +124,14 @@ class MaidNodeNfs {
   template <typename DataName>
   void DeleteBranchUntilFork(const DataName& data_name,
                              const StructuredDataVersions::VersionName& branch_tip);
-
+  // TODO(Prakash): This can move to private section
   boost::future<void> CreateAccount(const nfs_vault::AccountCreation& account_creation,
                                     const std::chrono::steady_clock::duration& timeout =
                                         std::chrono::seconds(10));
 
   void RemoveAccount(const nfs_vault::AccountRemoval& account_removal);
 
-  boost::future<void> RegisterPmid(const nfs_vault::PmidRegistration& pmid_registration,
+  boost::future<void> RegisterPmid(const passport::Pmid& pmid,
                                    const std::chrono::steady_clock::duration& timeout =
                                        std::chrono::seconds(10));
 
@@ -124,12 +140,7 @@ class MaidNodeNfs {
   PmidHealthFuture GetPmidHealth(const passport::PublicPmid::Name& pmid_name,
                                  const std::chrono::steady_clock::duration& timeout =
                                      std::chrono::seconds(10));
-
-  // This should be the function used in the GroupToSingle (and maybe also SingleToSingle) functors
-  // passed to 'routing.Join'.
-  template <typename T>
-  void HandleMessage(const T& routing_message);
-
+  friend class vault_manager::tools::PublicPmidStorer;
  private:
   typedef std::function<void(const DataNameAndContentOrReturnCode&)> GetFunctor;
   typedef std::function<void(const StructuredDataNameAndContentOrReturnCode&)> GetVersionsFunctor;
@@ -137,24 +148,50 @@ class MaidNodeNfs {
   typedef boost::promise<std::vector<StructuredDataVersions::VersionName>> VersionNamesPromise;
   typedef std::function<void(const AvailableSizeAndReturnCode&)> PmidHealthFunctor;
 
+  explicit MaidNodeNfs(const passport::Maid& maid);
+
   MaidNodeNfs(const MaidNodeNfs&);
   MaidNodeNfs(MaidNodeNfs&&);
   MaidNodeNfs& operator=(MaidNodeNfs);
 
-  routing::Timer<MaidNodeService::GetResponse::Contents> get_timer_;
-  routing::Timer<MaidNodeService::PutResponse::Contents> put_timer_;
-  routing::Timer<MaidNodeService::GetVersionsResponse::Contents> get_versions_timer_;
-  routing::Timer<MaidNodeService::GetBranchResponse::Contents> get_branch_timer_;
-  routing::Timer<MaidNodeService::CreateAccountResponse::Contents> create_account_timer_;
-  routing::Timer<MaidNodeService::PmidHealthResponse::Contents> pmid_health_timer_;
-  routing::Timer<MaidNodeService::CreateVersionTreeResponse::Contents> create_version_tree_timer_;
-  routing::Timer<MaidNodeService::PutVersionResponse::Contents> put_version_timer_;
-  routing::Timer<MaidNodeService::RegisterPmidResponse::Contents> register_pmid_timer_;
+  // Creates maid account and logs in. Only used for Zero state client
+  // Can only do public key lookup in provided public_pmids (not in network).
+  static std::shared_ptr<MaidNodeNfs> MakeSharedZeroState(
+      const passport::MaidAndSigner& maid_and_signer,
+      const std::vector<passport::PublicPmid>& public_pmids);
+
+  void Init(const passport::MaidAndSigner& maid_and_signer);
+
+  void Init();
+
+  void InitZeroState(const passport::MaidAndSigner& maid_and_signer,
+                     const std::vector<passport::PublicPmid>& public_pmids);
+
+  void CreateAccount(const passport::PublicMaid& public_maid,
+                     const passport::PublicAnmaid& public_anmaid);
+  void InitRouting(std::vector<passport::PublicPmid> = std::vector<passport::PublicPmid>());
+
+  routing::Functors InitialiseRoutingCallbacks();
+  void OnNetworkStatusChange(int updated_network_health);
+
+  template <typename T>
+  void OnMessageReceived(const T& routing_message);
+
+  template <typename T>
+  void HandleMessage(const T& routing_message);
+
+  const passport::Maid kMaid_;
+  AsioService asio_service_;
+  MaidNodeService::RpcTimers rpc_timers_;
+  std::mutex network_health_mutex_;
+  std::condition_variable network_health_condition_variable_;
+  int network_health_;
+  OnNetworkHealthChange network_health_change_signal_;
+  std::unique_ptr<routing::Routing> routing_;
+  nfs::detail::PublicPmidHelper public_pmid_helper_;
   MaidNodeDispatcher dispatcher_;
   nfs::Service<MaidNodeService> service_;
-  mutable std::mutex pmid_node_hint_mutex_;
-  passport::PublicPmid::Name pmid_node_hint_;
-  GetHandler get_handler_;
+  GetHandler<MaidNodeDispatcher> get_handler_;
 };
 
 void CreateAccount(std::shared_ptr<passport::Maid> maid,
@@ -185,9 +222,10 @@ boost::future<void> MaidNodeNfs::Put(const Data& data,
   auto response_functor([promise](const nfs_client::ReturnCode& result) {
                            HandlePutResponseResult(result, promise);
                         });
-  auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(1, response_functor));
-  auto task_id(put_timer_.NewTaskId());
-  put_timer_.AddTask(
+  auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(routing::Parameters::group_size - 1,
+                                                               response_functor));
+  auto task_id(rpc_timers_.put_timer.NewTaskId());
+  rpc_timers_.put_timer.AddTask(
       timeout,
       [op_data, data](ResponseContents put_response) {
         LOG(kVerbose) << "MaidNodeNfs Put HandleResponseContents for "
@@ -195,7 +233,7 @@ boost::future<void> MaidNodeNfs::Put(const Data& data,
         op_data->HandleResponseContents(std::move(put_response));
       },
       routing::Parameters::group_size - 1, task_id);
-  put_timer_.PrintTaskIds();
+  rpc_timers_.put_timer.PrintTaskIds();
   dispatcher_.SendPutRequest(task_id, data, pmid_hint);
   return promise->get_future();
 }
@@ -225,8 +263,8 @@ boost::future<void> MaidNodeNfs::CreateVersionTree(const DataName& data_name,
                            HandleCreateVersionTreeResult(result, promise);
                         });
   auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(1, response_functor));
-  auto task_id(create_version_tree_timer_.NewTaskId());
-  create_version_tree_timer_.AddTask(
+  auto task_id(rpc_timers_.create_version_tree_timer.NewTaskId());
+  rpc_timers_.create_version_tree_timer.AddTask(
       timeout,
       [op_data, data_name](ResponseContents get_response) {
         LOG(kVerbose) << "MaidNodeNfs CreateVersionTree HandleResponseContents for "
@@ -234,7 +272,7 @@ boost::future<void> MaidNodeNfs::CreateVersionTree(const DataName& data_name,
         op_data->HandleResponseContents(std::move(get_response));
       },
       routing::Parameters::group_size * 3, task_id);
-  create_version_tree_timer_.PrintTaskIds();
+  rpc_timers_.create_version_tree_timer.PrintTaskIds();
   dispatcher_.SendCreateVersionTreeRequest(task_id, data_name, version_name, max_versions,
                                            max_branches);
   return promise->get_future();
@@ -249,8 +287,8 @@ MaidNodeNfs::VersionNamesFuture MaidNodeNfs::GetVersions(
   auto response_functor([promise](const StructuredDataNameAndContentOrReturnCode&
                                   result) { HandleGetVersionsOrBranchResult(result, promise); });
   auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(1, response_functor));
-  auto task_id(get_versions_timer_.NewTaskId());
-  get_versions_timer_.AddTask(
+  auto task_id(rpc_timers_.get_versions_timer.NewTaskId());
+  rpc_timers_.get_versions_timer.AddTask(
       timeout, [op_data](ResponseContents get_versions_response) {
                  op_data->HandleResponseContents(std::move(get_versions_response));
                },
@@ -270,8 +308,8 @@ MaidNodeNfs::VersionNamesFuture MaidNodeNfs::GetBranch(
   auto response_functor([promise](const StructuredDataNameAndContentOrReturnCode &
                                   result) { HandleGetVersionsOrBranchResult(result, promise); });
   auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(1, response_functor));
-  auto task_id(get_branch_timer_.NewTaskId());
-  get_branch_timer_.AddTask(timeout,
+  auto task_id(rpc_timers_.get_branch_timer.NewTaskId());
+  rpc_timers_.get_branch_timer.AddTask(timeout,
       [op_data](ResponseContents get_branch_response) {
           op_data->HandleResponseContents(std::move(get_branch_response));
       },
@@ -286,7 +324,9 @@ MaidNodeNfs::PutVersionFuture MaidNodeNfs::PutVersion(
     const DataName& data_name, const StructuredDataVersions::VersionName& old_version_name,
     const StructuredDataVersions::VersionName& new_version_name,
     const std::chrono::steady_clock::duration& timeout) {
-  LOG(kVerbose) << "MaidNodeNfs Put Version " << HexSubstr(data_name.value);
+  LOG(kVerbose) << "MaidNodeNfs::PutVersion put new version "
+                << DebugId(new_version_name.id) << " after old version "
+                << DebugId(old_version_name.id) << " for " << HexSubstr(data_name.value);
   typedef MaidNodeService::PutVersionResponse::Contents ResponseContents;
   auto promise(
       std::make_shared<boost::promise<std::unique_ptr<StructuredDataVersions::VersionName>>>());
@@ -294,16 +334,17 @@ MaidNodeNfs::PutVersionFuture MaidNodeNfs::PutVersion(
                            HandlePutVersionResult(result, promise);
                         });
   auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(1, response_functor));
-  auto task_id(put_version_timer_.NewTaskId());
-  put_version_timer_.AddTask(
+  auto task_id(rpc_timers_.put_version_timer.NewTaskId());
+  rpc_timers_.put_version_timer.AddTask(
       timeout,
-      [op_data, data_name](ResponseContents get_response) {
-        LOG(kVerbose) << "MaidNodeNfs CreateVersionTree HandleResponseContents for "
-                      << HexSubstr(data_name.value);
+      [op_data, data_name, new_version_name, old_version_name](ResponseContents get_response) {
+        LOG(kVerbose) << "MaidNodeNfs PutVersion HandleResponseContents put new version "
+                      << DebugId(new_version_name.id) << " after old version "
+                      << DebugId(old_version_name.id) << " for " << HexSubstr(data_name.value);
         op_data->HandleResponseContents(std::move(get_response));
       },
       routing::Parameters::group_size * 3, task_id);
-  put_version_timer_.PrintTaskIds();
+  rpc_timers_.put_version_timer.PrintTaskIds();
   dispatcher_.SendPutVersionRequest(task_id, data_name, old_version_name, new_version_name);
   return promise->get_future();
 }
@@ -312,6 +353,16 @@ template <typename DataName>
 void MaidNodeNfs::DeleteBranchUntilFork(const DataName& data_name,
                                         const StructuredDataVersions::VersionName& branch_tip) {
   dispatcher_.SendDeleteBranchUntilForkRequest(data_name, branch_tip);
+}
+
+template <typename T>
+void MaidNodeNfs::OnMessageReceived(const T& routing_message) {
+  LOG(kVerbose) << "NFS::OnMessageReceived";
+  std::shared_ptr<MaidNodeNfs> this_ptr(shared_from_this());
+  asio_service_.service().post([=] {
+      LOG(kVerbose) << "NFS::OnMessageReceived invoked task in asio_service";
+      this_ptr->HandleMessage(routing_message);
+  });
 }
 
 template <typename T>

@@ -29,7 +29,9 @@
 
 #include "maidsafe/nfs/message_types.h"
 #include "maidsafe/nfs/message_wrapper.h"
+#include "maidsafe/nfs/client/data_getter_dispatcher.h"
 #include "maidsafe/nfs/client/data_getter_service.h"
+#include "maidsafe/nfs/client/get_handler.h"
 #include "maidsafe/nfs/client/maid_node_service.h"
 #include "maidsafe/nfs/client/messages.h"
 #include "maidsafe/nfs/vault/messages.h"
@@ -40,56 +42,54 @@ namespace nfs {
 
 namespace test {
 
-template <typename T>
 class ServiceTest : public testing::Test {};
 
-typedef testing::Types</*nfs_client::MaidNodeService, */nfs_client::DataGetterService> ServiceTypes;
-TYPED_TEST_CASE(ServiceTest, ServiceTypes);
-
-TYPED_TEST(ServiceTest, BEH_All) {
+TEST_F(ServiceTest, BEH_All) {
   passport::Anmaid anmaid;
   passport::Maid maid(anmaid);
   routing::Routing routing(maid);
   AsioService asio_service(2);
-  typedef typename TypeParam::GetResponse GetResponse;
+  typedef nfs_client::DataGetterService::GetResponse GetResponse;
+  nfs_client::DataGetterDispatcher dispatcher(routing);
   routing::Timer<typename GetResponse::Contents> get_timer(asio_service);
-  routing::Timer<typename TypeParam::GetVersionsResponse::Contents> get_versions_timer(
-      asio_service);
-  routing::Timer<typename TypeParam::GetBranchResponse::Contents> get_branch_timer(
-      asio_service);
-  Service<TypeParam> service(
-      std::move(std::unique_ptr<TypeParam>(new TypeParam(
-          routing, get_timer, get_versions_timer, get_branch_timer))));
+  nfs_client::GetHandler<nfs_client::DataGetterDispatcher> get_handler(get_timer,
+                                                                       dispatcher);
+  routing::Timer<typename nfs_client::DataGetterService::GetVersionsResponse::Contents>
+      get_versions_timer(asio_service);
+  routing::Timer<typename nfs_client::DataGetterService::GetBranchResponse::Contents>
+      get_branch_timer(asio_service);
+  Service<nfs_client::DataGetterService> service(
+      std::move(std::unique_ptr<nfs_client::DataGetterService>(
+          new nfs_client::DataGetterService(
+              routing, get_handler, get_versions_timer, get_branch_timer))));
 
   ImmutableData immutable_data(NonEmptyString(RandomString(10)));
+  auto promise(std::make_shared<boost::promise<ImmutableData>>());
+  get_handler.Get(immutable_data.name(), promise, std::chrono::milliseconds(500));
+  boost::future<ImmutableData> result(promise->get_future());
 
-  // Set timer callback
+  GetResponse::Contents contents(immutable_data);
   auto task_id(get_timer.NewTaskId());
-  auto callback([immutable_data](typename GetResponse::Contents returned_contents) {
-      ImmutableData retrieved(ImmutableData::Name(returned_contents.name.raw_name),
-                              ImmutableData::serialised_type(
-                                  NonEmptyString(returned_contents.content->data)));
-      EXPECT_EQ(immutable_data.name(), retrieved.name())
-          << "\nOriginal name:  " << Base64Substr(immutable_data.name()->string())
-          << "\nRetrieved name: " << Base64Substr(retrieved.name()->string());
-      EXPECT_EQ(immutable_data.data(), retrieved.data());
-  });
-  get_timer.AddTask(std::chrono::milliseconds(500), callback, 1, task_id);
-
-  typename GetResponse::Contents contents(immutable_data);
+  --task_id;
   GetResponse get_response(MessageId(task_id), contents);
   auto serialised_get_response(get_response.Serialise());
 
-  NodeId sender_node_id(NodeId::kRandomId);
-  NodeId sender_group_id(NodeId::kRandomId);
+  NodeId sender_node_id(NodeId::IdType::kRandomId);
+  NodeId sender_group_id(NodeId::IdType::kRandomId);
   NodeId receiver_node_id(routing.kNodeId());
-  typename GetResponse::Sender sender((routing::GroupId(sender_node_id)),
-                                      (routing::SingleId(sender_group_id)));
-  typename GetResponse::Receiver receiver(receiver_node_id);
+  GetResponse::Sender sender((routing::GroupId(sender_node_id)),
+                             (routing::SingleId(sender_group_id)));
+  GetResponse::Receiver receiver(receiver_node_id);
 
   auto response_tuple(ParseMessageWrapper(serialised_get_response));
 
   service.HandleMessage(response_tuple, sender, receiver);
+
+  ImmutableData retrieved(result.get());
+  EXPECT_EQ(immutable_data.name(), retrieved.name())
+      << "\nOriginal name:  " << Base64Substr(immutable_data.name()->string())
+      << "\nRetrieved name: " << Base64Substr(retrieved.name()->string());
+  EXPECT_EQ(immutable_data.data(), retrieved.data());
 }
 
 }  // namespace test

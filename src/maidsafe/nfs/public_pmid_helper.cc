@@ -31,6 +31,15 @@ PublicPmidHelper::PublicPmidHelper()
       new_futures_(),
       worker_future_() {}
 
+PublicPmidHelper::~PublicPmidHelper() {
+  try {
+    if (worker_future_.valid())
+      worker_future_.get();
+  } catch (const std::exception& ex) {
+    LOG(kWarning) << "Error in ~PublicPmidHelper() : " << boost::diagnostic_information(ex);
+  }
+}
+
 void PublicPmidHelper::AddEntry(boost::future<passport::PublicPmid>&& future,
                                 routing::GivePublicKeyFunctor give_key) {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -67,7 +76,7 @@ void PublicPmidHelper::Poll() {
         break;
       }
     }
-    LOG(kVerbose) << " polling on (" << futures.size() << ") futures";
+//     LOG(kVerbose) << " polling on (" << futures.size() << ") futures";
     auto ready_future_itr = boost::wait_for_any(futures.begin(), futures.end());
     auto index = ready_future_itr - futures.begin();
     try {

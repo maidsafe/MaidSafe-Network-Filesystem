@@ -31,6 +31,7 @@ namespace maidsafe {
 
 namespace nfs_client {
 
+template <typename DispatcherType>
 class GetHandler;
 
 class MaidNodeService {
@@ -51,19 +52,25 @@ class MaidNodeService {
   typedef nfs::CreateVersionTreeResponseFromMaidManagerToMaidNode CreateVersionTreeResponse;
   typedef nfs::RegisterPmidResponseFromMaidManagerToMaidNode RegisterPmidResponse;
 
+  struct RpcTimers {
+    explicit RpcTimers(AsioService& asio_service_);
+    void CancellAll();
 
-  MaidNodeService(
-      routing::Routing& routing, routing::Timer<MaidNodeService::GetResponse::Contents>& get_timer,
-      routing::Timer<MaidNodeService::PutResponse::Contents>& put_timer,
-      routing::Timer<MaidNodeService::GetVersionsResponse::Contents>& get_versions_timer,
-      routing::Timer<MaidNodeService::GetBranchResponse::Contents>& get_branch_timer,
-      routing::Timer<MaidNodeService::CreateAccountResponse::Contents>& create_account_timer,
-      routing::Timer<MaidNodeService::PmidHealthResponse::Contents>& pmid_health_timer,
-      routing::Timer<MaidNodeService::CreateVersionTreeResponse::Contents>&
-          create_version_tree_timer,
-      routing::Timer<MaidNodeService::PutVersionResponse::Contents>& put_version_timer,
-      routing::Timer<MaidNodeService::RegisterPmidResponse::Contents>& register_pmid_timer,
-      GetHandler& get_handler);
+    routing::Timer<GetResponse::Contents> get_timer;
+    routing::Timer<PutResponse::Contents> put_timer;
+    routing::Timer<GetVersionsResponse::Contents> get_versions_timer;
+    routing::Timer<GetBranchResponse::Contents> get_branch_timer;
+    routing::Timer<CreateAccountResponse::Contents> create_account_timer;
+    routing::Timer<PmidHealthResponse::Contents> pmid_health_timer;
+    routing::Timer<CreateVersionTreeResponse::Contents> create_version_tree_timer;
+    routing::Timer<PutVersionResponse::Contents> put_version_timer;
+    routing::Timer<RegisterPmidResponse::Contents> register_pmid_timer;
+  };
+
+
+  MaidNodeService(const routing::SingleId& receiver,
+                  RpcTimers& rpc_timers,
+                  GetHandler<MaidNodeDispatcher>& get_handler);
 
   void HandleMessage(const GetResponse& message, const GetResponse::Sender& sender,
                      const GetResponse::Receiver& receiver);
@@ -106,17 +113,9 @@ class MaidNodeService {
   void HandlePutResponse(const nfs::PutRequestFromMaidNodeToMaidManager& message,
                          const typename nfs::PutRequestFromMaidNodeToMaidManager::Sender& sender);
 
-  routing::Routing& routing_;
-  routing::Timer<MaidNodeService::GetResponse::Contents>& get_timer_;
-  routing::Timer<MaidNodeService::PutResponse::Contents>& put_timer_;
-  routing::Timer<MaidNodeService::GetVersionsResponse::Contents>& get_versions_timer_;
-  routing::Timer<MaidNodeService::GetBranchResponse::Contents>& get_branch_timer_;
-  routing::Timer<MaidNodeService::CreateAccountResponse::Contents>& create_account_timer_;
-  routing::Timer<MaidNodeService::PmidHealthResponse::Contents>& pmid_health_timer_;
-  routing::Timer<MaidNodeService::CreateVersionTreeResponse::Contents>& create_version_tree_timer_;
-  routing::Timer<MaidNodeService::PutVersionResponse::Contents>& put_version_timer_;
-  routing::Timer<MaidNodeService::RegisterPmidResponse::Contents>& register_pmid_timer_;
-  GetHandler& get_handler_;
+  const routing::SingleId kReceiver_;
+  RpcTimers& rpc_timers_;
+  GetHandler<MaidNodeDispatcher>& get_handler_;
 };
 
 }  // namespace nfs_client

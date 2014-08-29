@@ -22,6 +22,7 @@
 #include <map>
 #include <tuple>
 #include <string>
+#include <utility>
 
 #include "boost/thread/future.hpp"
 
@@ -39,9 +40,10 @@ namespace maidsafe {
 
 namespace nfs_client {
 
+template <typename DistaptcherType>
 class GetHandlerVisitor : public boost::static_visitor<> {
  public:
-  GetHandlerVisitor(MaidNodeDispatcher& dispatcher_in, routing::TaskId task_id)
+  GetHandlerVisitor(DistaptcherType& dispatcher_in, routing::TaskId task_id)
       : dispatcher_(dispatcher_in), kTaskId_(task_id) {}
 
   template <typename Name>
@@ -52,10 +54,26 @@ class GetHandlerVisitor : public boost::static_visitor<> {
   }
 
  private:
-  MaidNodeDispatcher& dispatcher_;
+  DistaptcherType& dispatcher_;
   const routing::TaskId kTaskId_;
 };
 
+class ValidateDataVisitor : public boost::static_visitor<bool> {
+ public:
+  explicit ValidateDataVisitor(const nfs_vault::Content& content) : content_(content) {}
+
+  template<typename DataNameType>
+  result_type operator()(const DataNameType& data_name) {
+    return (typename DataNameType::data_type(data_name,
+                     typename DataNameType::data_type::serialised_type(
+                         NonEmptyString(content_.data)))).name() == data_name;
+  }
+
+ private:
+  nfs_vault::Content content_;
+};
+
+template <typename DistaptcherType>
 class GetHandler {
   typedef std::tuple<size_t, routing::TaskId, DataNameVariant> GetInfo;
   enum class Operation : int {
@@ -66,9 +84,9 @@ class GetHandler {
   };
 
  public:
-  GetHandler(routing::Timer<DataNameAndContentOrReturnCode>& get_timer_in,
-             MaidNodeDispatcher& dispatcher_in)
-      : get_timer(get_timer_in), dispatcher(dispatcher_in), get_info(), mutex() {}
+  GetHandler(routing::Timer<DataNameAndContentOrReturnCode>& get_timer,
+             DistaptcherType& dispatcher)
+      : get_timer_(get_timer), dispatcher_(dispatcher), get_info_(), mutex_() {}
 
   template <typename DataName>
   void Get(const DataName& data_name,
@@ -78,35 +96,98 @@ class GetHandler {
   void AddResponse(routing::TaskId task_id, const DataNameAndContentOrReturnCode& response);
 
  private:
-  routing::Timer<DataNameAndContentOrReturnCode>& get_timer;
-  MaidNodeDispatcher& dispatcher;
-  std::map<routing::TaskId, GetInfo> get_info;
-  std::mutex mutex;
+  bool ValidateData(const nfs_vault::Content& content, const DataNameVariant& data_name);
+  routing::Timer<DataNameAndContentOrReturnCode>& get_timer_;
+  DistaptcherType& dispatcher_;
+  std::map<routing::TaskId, GetInfo> get_info_;
+  std::mutex mutex_;
 };
 
+template <typename DistaptcherType>
 template <typename DataName>
-void GetHandler::Get(const DataName& data_name,
-                     std::shared_ptr<boost::promise<typename DataName::data_type>> promise,
-                     const std::chrono::steady_clock::duration& timeout) {
-  auto task_id(get_timer.NewTaskId());
+void GetHandler<DistaptcherType>::Get(
+    const DataName& data_name,
+    std::shared_ptr<boost::promise<typename DataName::data_type>> promise,
+    const std::chrono::steady_clock::duration& timeout) {
+  auto task_id(get_timer_.NewTaskId());
   HandleGetResult<typename DataName::data_type> response_functor(promise);
   auto op_data(
            std::make_shared<nfs::OpData<DataNameAndContentOrReturnCode>>(1, response_functor));
   {
-    std::lock_guard<std::mutex> lock(mutex);
-    get_info.insert(std::make_pair(task_id, std::make_tuple(0, task_id,
-                                   GetDataNameVariant(DataName::data_type::Tag::kValue,
-                                                      data_name.value))));
+    std::lock_guard<std::mutex> lock(mutex_);
+    get_info_.insert(std::make_pair(task_id, std::make_tuple(0, task_id,
+                                    GetDataNameVariant(DataName::data_type::Tag::kValue,
+                                                       data_name.value))));
   }
-  get_timer.AddTask(timeout,
-                    [op_data, data_name](DataNameAndContentOrReturnCode get_response) {
-                       LOG(kVerbose) << "GetHandler Get HandleResponseContents for "
-                                     << HexSubstr(data_name.value);
-                       op_data->HandleResponseContents(std::move(get_response));
-                    },
-                    // TODO(Fraser#5#): 2013-08-18 - Confirm expected count
-                    routing::Parameters::group_size * 2, task_id);
-  dispatcher.SendGetRequest(task_id, data_name);
+  get_timer_.AddTask(timeout,
+                     [op_data, data_name, task_id, this](
+                         DataNameAndContentOrReturnCode get_response) {
+                        LOG(kVerbose) << "GetHandler Get HandleResponseContents for "
+                                      << HexSubstr(data_name.value);
+                        op_data->HandleResponseContents(std::move(get_response));
+                        {
+                          std::lock_guard<std::mutex> lock(mutex_);
+                          auto iter(std::find_if(std::begin(get_info_), std::end(get_info_),
+                                                 [task_id](const std::pair<routing::TaskId,
+                                                                           GetInfo>& info) {
+                                                   return std::get<1>(info.second) == task_id;
+                                                 }));
+                          if (iter != std::end(get_info_))
+                            get_info_.erase(iter);
+                        }
+                     }, 1, task_id);
+  dispatcher_.SendGetRequest(task_id, data_name);
+}
+
+template <typename DistaptcherType>
+void GetHandler<DistaptcherType>::AddResponse(routing::TaskId task_id,
+                                              const DataNameAndContentOrReturnCode& response) {
+  LOG(kVerbose) << " GetHandler::AddResponse "  << task_id;
+  Operation operation(Operation::kNoOperation);
+  routing::TaskId new_task_id(0);
+  GetInfo get_info;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto found(get_info_.find(task_id));
+    if (found == std::end(get_info_))
+      return;
+    get_info = get_info_[task_id];
+    std::get<0>(get_info_[task_id])++;
+    if (response.content && ValidateData(*response.content, std::get<2>(get_info_[task_id]))) {
+      operation = Operation::kAddResponse;
+    } else if (response.return_code &&
+               (std::get<0>(get_info_[task_id]) >= routing::Parameters::group_size)) {
+      new_task_id = get_timer_.NewTaskId();
+      get_info_.insert(std::make_pair(new_task_id,
+                                      std::make_tuple(0, std::get<1>(get_info_[task_id]),
+                                                      std::get<2>(get_info_[task_id]))));
+      get_info_.erase(task_id);
+      operation = Operation::kSendRequest;
+    } else  if (!response.return_code && !response.content) {
+      operation = Operation::kCancelTask;
+    }
+  }
+
+  LOG(kVerbose) << " GetHandler::AddResponse "  << task_id
+                << " original task id: " << std::get<1>(get_info_[task_id])
+                << " operation " << static_cast<int>(operation);
+
+  if (operation == Operation::kAddResponse) {
+    get_timer_.AddResponse(std::get<1>(get_info), response);
+  } else if (operation == Operation::kSendRequest) {
+    GetHandlerVisitor<DistaptcherType> get_handler_visitor(dispatcher_, new_task_id);
+    boost::apply_visitor(get_handler_visitor, std::get<2>(get_info_[new_task_id]));
+  } else if (operation == Operation::kCancelTask) {
+    get_timer_.CancelTask(std::get<1>(get_info));
+  }
+}
+
+template <typename DistaptcherType>
+bool GetHandler<DistaptcherType>::ValidateData(const nfs_vault::Content& content,
+                              const DataNameVariant& data_name) {
+  ValidateDataVisitor validate_data_visitor(content);
+  return boost::apply_visitor(validate_data_visitor, data_name);
 }
 
 }  // namespace nfs_client
