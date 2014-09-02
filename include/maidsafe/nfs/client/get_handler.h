@@ -38,6 +38,16 @@
 
 namespace maidsafe {
 
+namespace vault {
+
+namespace test {
+
+class MaidManagerServiceTest;
+
+}  //  namespace test
+
+}  //  namespace vault
+
 namespace nfs_client {
 
 template <typename DistaptcherType>
@@ -94,6 +104,8 @@ class GetHandler {
            const std::chrono::steady_clock::duration& timeout);
 
   void AddResponse(routing::TaskId task_id, const DataNameAndContentOrReturnCode& response);
+
+  friend class vault::test::MaidManagerServiceTest;
 
  private:
   bool ValidateData(const nfs_vault::Content& content, const DataNameVariant& data_name);
@@ -185,7 +197,7 @@ void GetHandler<DistaptcherType>::AddResponse(routing::TaskId task_id,
 
 template <typename DistaptcherType>
 bool GetHandler<DistaptcherType>::ValidateData(const nfs_vault::Content& content,
-                              const DataNameVariant& data_name) {
+                                               const DataNameVariant& data_name) {
   ValidateDataVisitor validate_data_visitor(content);
   return boost::apply_visitor(validate_data_visitor, data_name);
 }

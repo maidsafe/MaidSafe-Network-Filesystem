@@ -43,6 +43,16 @@
 
 namespace maidsafe {
 
+namespace vault {
+
+namespace test {
+
+class MaidManagerServiceTest;
+
+}  //  namespace test
+
+}  //  namespace vault
+
 namespace nfs_client {
 
 class DataGetter {
@@ -78,6 +88,8 @@ class DataGetter {
   void HandleMessage(const T& routing_message);
 
   nfs::Service<DataGetterService>& service() { return service_; }
+
+  friend class vault::test::MaidManagerServiceTest;
 
  private:
   typedef std::function<void(const DataNameAndContentOrReturnCode&)> GetFunctor;
