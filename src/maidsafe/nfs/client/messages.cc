@@ -90,12 +90,101 @@ void swap(ReturnCode& lhs, ReturnCode& rhs) MAIDSAFE_NOEXCEPT {
   swap(lhs.value, rhs.value);
 }
 
+// ========================= PutReturnCode =========================================================
+PutReturnCode::PutReturnCode() : return_code() {}
+
+PutReturnCode::PutReturnCode(const ReturnCode& return_code_in)
+  : return_code(return_code_in) {}
+
+PutReturnCode::PutReturnCode(maidsafe_error error)
+  : return_code(error) {}
+
+PutReturnCode::PutReturnCode(const PutReturnCode& other)
+  : return_code(other.return_code) {}
+
+PutReturnCode::PutReturnCode(PutReturnCode&& other)
+  : return_code(std::move(other.return_code)) {}
+
+PutReturnCode& PutReturnCode::operator=(PutReturnCode other) {
+  swap(*this, other);
+  return *this;
+}
+
+PutReturnCode::PutReturnCode(const std::string& serialised_copy) {
+  protobuf::PutReturnCode proto_copy;
+  if (!proto_copy.ParseFromString(serialised_copy)) {
+    LOG(kError) << "can't parse PutReturnCode from incoming string";
+    BOOST_THROW_EXCEPTION(MakeError(CommonErrors::parsing_error));
+  }
+  return_code = ReturnCode(proto_copy.serialised_return_code());
+}
+
+std::string PutReturnCode::Serialise() const {
+  protobuf::PutReturnCode proto_copy;
+  proto_copy.set_serialised_return_code(return_code.Serialise());
+  return proto_copy.SerializeAsString();
+}
+
+bool operator==(const PutReturnCode& lhs, const PutReturnCode& rhs) {
+  return lhs.return_code == rhs.return_code;
+}
+
+void swap(PutReturnCode& lhs, PutReturnCode& rhs) MAIDSAFE_NOEXCEPT{
+  swap(lhs.return_code, rhs.return_code);
+}
+
+// ==================== CreateAccountReturnCode ====================================================
+CreateAccountReturnCode::CreateAccountReturnCode() : return_code() {}
+
+CreateAccountReturnCode::CreateAccountReturnCode(const ReturnCode& return_code_in)
+    : return_code(return_code_in) {}
+
+CreateAccountReturnCode::CreateAccountReturnCode(maidsafe_error error)
+    : return_code(error) {}
+
+CreateAccountReturnCode::CreateAccountReturnCode(const CreateAccountReturnCode& other)
+    : return_code(other.return_code) {}
+
+CreateAccountReturnCode::CreateAccountReturnCode(CreateAccountReturnCode&& other)
+    : return_code(std::move(other.return_code)) {}
+
+CreateAccountReturnCode& CreateAccountReturnCode::operator=(CreateAccountReturnCode other) {
+  swap(*this, other);
+  return *this;
+}
+
+CreateAccountReturnCode::CreateAccountReturnCode(const std::string& serialised_copy) {
+  protobuf::CreateAccountReturnCode proto_copy;
+  if (!proto_copy.ParseFromString(serialised_copy)) {
+    LOG(kError) << "can't parse CreateAccountReturnCode from incoming string";
+    BOOST_THROW_EXCEPTION(MakeError(CommonErrors::parsing_error));
+  }
+  return_code = ReturnCode(proto_copy.serialised_return_code());
+}
+
+std::string CreateAccountReturnCode::Serialise() const {
+  protobuf::CreateAccountReturnCode proto_copy;
+  proto_copy.set_serialised_return_code(return_code.Serialise());
+  return proto_copy.SerializeAsString();
+}
+
+bool operator==(const CreateAccountReturnCode& lhs, const CreateAccountReturnCode& rhs) {
+  return lhs.return_code == rhs.return_code;
+}
+
+void swap(CreateAccountReturnCode& lhs, CreateAccountReturnCode& rhs) MAIDSAFE_NOEXCEPT{
+  swap(lhs.return_code, rhs.return_code);
+}
+
 // ==================== AvailableSizeAndReturnCode =================================================
 AvailableSizeAndReturnCode::AvailableSizeAndReturnCode() : available_size(0), return_code() {}
 
 AvailableSizeAndReturnCode::AvailableSizeAndReturnCode(uint64_t size,
                                                        const ReturnCode& return_code_in)
     : available_size(size), return_code(return_code_in) {}
+
+AvailableSizeAndReturnCode::AvailableSizeAndReturnCode(maidsafe_error error)
+    : available_size(0), return_code(error) {}
 
 AvailableSizeAndReturnCode::AvailableSizeAndReturnCode(const AvailableSizeAndReturnCode& other)
     : available_size(other.available_size), return_code(other.return_code) {}
@@ -143,6 +232,9 @@ DataNameAndReturnCode::DataNameAndReturnCode() : name(), return_code() {}
 DataNameAndReturnCode::DataNameAndReturnCode(nfs_vault::DataName data_name, ReturnCode code)
     : name(std::move(data_name)), return_code(std::move(code)) {}
 
+DataNameAndReturnCode::DataNameAndReturnCode(maidsafe_error error)
+    : name(), return_code(error) {}
+
 DataNameAndReturnCode::DataNameAndReturnCode(const DataNameAndReturnCode& other)
     : name(other.name), return_code(other.return_code) {}
 
@@ -182,16 +274,17 @@ void swap(DataNameAndReturnCode& lhs, DataNameAndReturnCode& rhs) MAIDSAFE_NOEXC
 
 // ==================== DataNamesAndReturnCode =====================================================
 DataNamesAndReturnCode::DataNamesAndReturnCode(const ReturnCode& code)
-    : names(),
-      return_code(code) {}
+    : names(), return_code(code) {}
 
 DataNamesAndReturnCode::DataNamesAndReturnCode(const std::vector<nfs_vault::DataName>& data_names,
                                                const ReturnCode& code)
-    : names(),
-      return_code(code) {
+    : names(), return_code(code) {
   for (auto data_name : data_names)
     names.insert(data_name);
 }
+
+DataNamesAndReturnCode::DataNamesAndReturnCode(maidsafe_error error)
+    : names(), return_code(error) {}
 
 DataNamesAndReturnCode::DataNamesAndReturnCode(const DataNamesAndReturnCode& other)
     : names(other.names), return_code(other.return_code) {}
@@ -243,6 +336,9 @@ void swap(DataNamesAndReturnCode& lhs, DataNamesAndReturnCode& rhs) MAIDSAFE_NOE
 DataNameVersionAndReturnCode::DataNameVersionAndReturnCode()
     : data_name_and_version(), return_code() {}
 
+DataNameVersionAndReturnCode::DataNameVersionAndReturnCode(maidsafe_error error)
+    : data_name_and_version(), return_code(error) {}
+
 DataNameVersionAndReturnCode::DataNameVersionAndReturnCode(
     const DataNameVersionAndReturnCode& other)
     : data_name_and_version(other.data_name_and_version), return_code(other.return_code) {}
@@ -288,6 +384,9 @@ void swap(DataNameVersionAndReturnCode& lhs, DataNameVersionAndReturnCode& rhs) 
 // ==================== DataNameOldNewVersionAndReturnCode =========================================
 DataNameOldNewVersionAndReturnCode::DataNameOldNewVersionAndReturnCode()
     : data_name_old_new_version(), return_code() {}
+
+DataNameOldNewVersionAndReturnCode::DataNameOldNewVersionAndReturnCode(maidsafe_error error)
+    : data_name_old_new_version(), return_code(error) {}
 
 DataNameOldNewVersionAndReturnCode::DataNameOldNewVersionAndReturnCode(
     const DataNameOldNewVersionAndReturnCode& other)
@@ -338,6 +437,9 @@ void swap(DataNameOldNewVersionAndReturnCode& lhs,
 // ==================== DataAndReturnCode ==========================================================
 DataAndReturnCode::DataAndReturnCode() : data(), return_code() {}
 
+DataAndReturnCode::DataAndReturnCode(maidsafe_error error)
+    : data(), return_code(error) {}
+
 DataAndReturnCode::DataAndReturnCode(const DataAndReturnCode& other)
     : data(other.data), return_code(other.return_code) {}
 
@@ -383,6 +485,9 @@ DataNameAndContentOrReturnCode::DataNameAndContentOrReturnCode(
 DataNameAndContentOrReturnCode::DataNameAndContentOrReturnCode()
     : name(), content(), return_code() {}
 
+DataNameAndContentOrReturnCode::DataNameAndContentOrReturnCode(maidsafe_error error)
+    : name(), content(), return_code(error) {}
+
 DataNameAndContentOrReturnCode::DataNameAndContentOrReturnCode(
     const DataNameAndContentOrReturnCode& other)
         : name(other.name), content(other.content), return_code(other.return_code) {}
@@ -409,26 +514,26 @@ DataNameAndContentOrReturnCode::DataNameAndContentOrReturnCode(const std::string
   if (proto_copy.has_content())
     content.reset(nfs_vault::Content(proto_copy.content()));
   if (proto_copy.has_serialised_return_code()) {
-    return_code.reset(ReturnCode(proto_copy.serialised_return_code()));
+    return_code = ReturnCode(proto_copy.serialised_return_code());
   }
-  if (!nfs::CheckMutuallyExclusive(content, return_code)) {
+  /*if (!nfs::CheckMutuallyExclusive(content, return_code)) {
     assert(false);
     BOOST_THROW_EXCEPTION(MakeError(CommonErrors::parsing_error));
-  }
+  }*/
 }
 
 std::string DataNameAndContentOrReturnCode::Serialise() const {
-  if (!nfs::CheckMutuallyExclusive(content, return_code)) {
+  /*if (!nfs::CheckMutuallyExclusive(content, return_code)) {
     assert(false);
     BOOST_THROW_EXCEPTION(MakeError(CommonErrors::serialisation_error));
-  }
+  }*/
   protobuf::DataNameAndContentOrReturnCode proto_copy;
 
   proto_copy.set_serialised_name(name.Serialise());
   if (content)
     proto_copy.set_content(content->Serialise());
   else
-    proto_copy.set_serialised_return_code(return_code->Serialise());
+    proto_copy.set_serialised_return_code(return_code.Serialise());
   return proto_copy.SerializeAsString();
 }
 
@@ -439,9 +544,8 @@ bool operator==(const DataNameAndContentOrReturnCode& lhs,
 
   if (lhs.content)
     return (*lhs.content) == (*rhs.content);
-  else if (lhs.return_code)
-    return (*lhs.return_code) == (*rhs.return_code);
-  return false;
+
+  return (lhs.return_code) == (rhs.return_code);
 }
 
 void swap(DataNameAndContentOrReturnCode& lhs,
@@ -454,17 +558,21 @@ void swap(DataNameAndContentOrReturnCode& lhs,
 
 // ==================== StructuredDataNameAndContentOrReturnCode ===================================
 StructuredDataNameAndContentOrReturnCode::StructuredDataNameAndContentOrReturnCode()
-    : structured_data(), data_name_and_return_code() {}
+    : structured_data(), data_name(), return_code() {}
+
+StructuredDataNameAndContentOrReturnCode::StructuredDataNameAndContentOrReturnCode(
+    maidsafe_error error)
+    : structured_data(), data_name(), return_code(error) {}
 
 StructuredDataNameAndContentOrReturnCode::StructuredDataNameAndContentOrReturnCode(
     const StructuredDataNameAndContentOrReturnCode& other)
-    : structured_data(other.structured_data),
-      data_name_and_return_code(other.data_name_and_return_code) {}
+    : structured_data(other.structured_data), data_name(other.data_name),
+      return_code(other.return_code) {}
 
 StructuredDataNameAndContentOrReturnCode::StructuredDataNameAndContentOrReturnCode(
     StructuredDataNameAndContentOrReturnCode&& other)
-    : structured_data(std::move(other.structured_data)),
-      data_name_and_return_code(std::move(other.data_name_and_return_code)) {}
+    : structured_data(std::move(other.structured_data)), data_name(std::move(other.data_name)),
+      return_code(std::move(other.return_code)) {}
 
 StructuredDataNameAndContentOrReturnCode& StructuredDataNameAndContentOrReturnCode::operator=(
     StructuredDataNameAndContentOrReturnCode other) {
@@ -473,26 +581,27 @@ StructuredDataNameAndContentOrReturnCode& StructuredDataNameAndContentOrReturnCo
 }
 
 StructuredDataNameAndContentOrReturnCode::StructuredDataNameAndContentOrReturnCode(
-    const std::string& serialised_copy)
-    : structured_data(), data_name_and_return_code() {
+  const std::string& serialised_copy)
+  : structured_data(), data_name(), return_code() {
   protobuf::StructuredDataNameAndContentOrReturnCode proto_copy;
   if (!proto_copy.ParseFromString(serialised_copy))
     BOOST_THROW_EXCEPTION(MakeError(CommonErrors::parsing_error));
 
   if (proto_copy.has_serialised_structured_data())
     structured_data.reset(StructuredData(proto_copy.serialised_structured_data()));
-  if (proto_copy.has_serialised_data_name_and_return_code()) {
-    data_name_and_return_code.reset(
-        DataNameAndReturnCode(proto_copy.serialised_data_name_and_return_code()));
+  if (proto_copy.has_serialised_data_name() && proto_copy.has_serialised_return_code()) {
+    data_name.reset(nfs_vault::DataName(proto_copy.serialised_data_name()));
+    return_code = ReturnCode(proto_copy.serialised_return_code());
   }
-  if (!nfs::CheckMutuallyExclusive(structured_data, data_name_and_return_code)) {
+
+  if (!nfs::CheckMutuallyExclusive(structured_data, data_name)) {
     assert(false);
     BOOST_THROW_EXCEPTION(MakeError(CommonErrors::parsing_error));
   }
 }
 
 std::string StructuredDataNameAndContentOrReturnCode::Serialise() const {
-  if (!nfs::CheckMutuallyExclusive(structured_data, data_name_and_return_code)) {
+  if (!nfs::CheckMutuallyExclusive(structured_data, data_name)) {
     assert(false);
     BOOST_THROW_EXCEPTION(MakeError(CommonErrors::serialisation_error));
   }
@@ -500,8 +609,10 @@ std::string StructuredDataNameAndContentOrReturnCode::Serialise() const {
 
   if (structured_data)
     proto_copy.set_serialised_structured_data(structured_data->Serialise());
-  else
-    proto_copy.set_serialised_data_name_and_return_code(data_name_and_return_code->Serialise());
+  else if (data_name) {
+    proto_copy.set_serialised_data_name(data_name->Serialise());
+    proto_copy.set_serialised_return_code(return_code.Serialise());
+  }
   return proto_copy.SerializeAsString();
 }
 
@@ -509,8 +620,8 @@ bool operator==(const StructuredDataNameAndContentOrReturnCode& lhs,
                 const StructuredDataNameAndContentOrReturnCode& rhs) {
   if (lhs.structured_data)
     return (*lhs.structured_data) == (*rhs.structured_data);
-  else if (lhs.data_name_and_return_code)
-    return (*lhs.data_name_and_return_code) == (*rhs.data_name_and_return_code);
+  if (lhs.data_name)
+    return (*lhs.data_name == *rhs.data_name && lhs.return_code == rhs.return_code);
   return false;
 }
 
@@ -518,7 +629,51 @@ void swap(StructuredDataNameAndContentOrReturnCode& lhs,
           StructuredDataNameAndContentOrReturnCode& rhs) MAIDSAFE_NOEXCEPT {
   using std::swap;
   swap(lhs.structured_data, rhs.structured_data);
-  swap(lhs.data_name_and_return_code, rhs.data_name_and_return_code);
+  swap(lhs.data_name, rhs.data_name);
+  swap(lhs.return_code, rhs.return_code);
+}
+
+// ==================== CreateVersionTreeReturnCode ================================================
+CreateVersionTreeReturnCode::CreateVersionTreeReturnCode() : return_code() {}
+
+CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(const ReturnCode& return_code_in)
+  : return_code(return_code_in) {}
+
+CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(maidsafe_error error)
+  : return_code(error) {}
+
+CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(const CreateVersionTreeReturnCode& other)
+  : return_code(other.return_code) {}
+
+CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(CreateVersionTreeReturnCode&& other)
+  : return_code(std::move(other.return_code)) {}
+
+CreateVersionTreeReturnCode& CreateVersionTreeReturnCode::operator=(CreateVersionTreeReturnCode other) {
+  swap(*this, other);
+  return *this;
+}
+
+CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(const std::string& serialised_copy) {
+  protobuf::CreateVersionTreeReturnCode proto_copy;
+  if (!proto_copy.ParseFromString(serialised_copy)) {
+    LOG(kError) << "Can't parse CreateVersionTreeReturnCode from incoming string";
+    BOOST_THROW_EXCEPTION(MakeError(CommonErrors::parsing_error));
+  }
+  return_code = ReturnCode(proto_copy.serialised_return_code());
+}
+
+std::string CreateVersionTreeReturnCode::Serialise() const {
+  protobuf::CreateVersionTreeReturnCode proto_copy;
+  proto_copy.set_serialised_return_code(return_code.Serialise());
+  return proto_copy.SerializeAsString();
+}
+
+bool operator==(const CreateVersionTreeReturnCode& lhs, const CreateVersionTreeReturnCode& rhs) {
+  return lhs.return_code == rhs.return_code;
+}
+
+void swap(CreateVersionTreeReturnCode& lhs, CreateVersionTreeReturnCode& rhs) MAIDSAFE_NOEXCEPT{
+  swap(lhs.return_code, rhs.return_code);
 }
 
 // ========================== TipOfTreeAndReturnCode ===================================
@@ -528,12 +683,14 @@ TipOfTreeAndReturnCode::TipOfTreeAndReturnCode()
 TipOfTreeAndReturnCode::TipOfTreeAndReturnCode(const ReturnCode return_code_in)
     : tip_of_tree(), return_code(return_code_in) {}
 
-TipOfTreeAndReturnCode::TipOfTreeAndReturnCode(
-    const TipOfTreeAndReturnCode& other)
-        : tip_of_tree(other.tip_of_tree), return_code(other.return_code) {}
+TipOfTreeAndReturnCode::TipOfTreeAndReturnCode(maidsafe_error error)
+    : tip_of_tree(), return_code(error) {}
+
+TipOfTreeAndReturnCode::TipOfTreeAndReturnCode(const TipOfTreeAndReturnCode& other)
+    : tip_of_tree(other.tip_of_tree), return_code(other.return_code) {}
 
 TipOfTreeAndReturnCode::TipOfTreeAndReturnCode(TipOfTreeAndReturnCode&& other)
-        : tip_of_tree(std::move(other.tip_of_tree)), return_code(std::move(other.return_code)) {}
+    : tip_of_tree(std::move(other.tip_of_tree)), return_code(std::move(other.return_code)) {}
 
 TipOfTreeAndReturnCode& TipOfTreeAndReturnCode::operator=(TipOfTreeAndReturnCode other) {
   swap(*this, other);
@@ -582,6 +739,9 @@ void swap(TipOfTreeAndReturnCode& lhs, TipOfTreeAndReturnCode& rhs) MAIDSAFE_NOE
 // ==================== DataPmidHintAndReturnCode ==================================================
 DataPmidHintAndReturnCode::DataPmidHintAndReturnCode() : data_and_pmid_hint(), return_code() {}
 
+DataPmidHintAndReturnCode::DataPmidHintAndReturnCode(maidsafe_error error)
+    : data_and_pmid_hint(), return_code(error) {}
+
 DataPmidHintAndReturnCode::DataPmidHintAndReturnCode(const DataPmidHintAndReturnCode& other)
     : data_and_pmid_hint(other.data_and_pmid_hint), return_code(other.return_code) {}
 
@@ -627,6 +787,9 @@ PmidRegistrationAndReturnCode::PmidRegistrationAndReturnCode()
 PmidRegistrationAndReturnCode::PmidRegistrationAndReturnCode(
     nfs_vault::PmidRegistration pmid_health, ReturnCode return_code_in)
         : pmid_registration(std::move(pmid_health)), return_code(std::move(return_code_in)) {}
+
+PmidRegistrationAndReturnCode::PmidRegistrationAndReturnCode(maidsafe_error error)
+    : pmid_registration(), return_code(error) {}
 
 PmidRegistrationAndReturnCode::PmidRegistrationAndReturnCode(
     const PmidRegistrationAndReturnCode& other)
@@ -686,6 +849,9 @@ DataNameAndSpaceAndReturnCode::DataNameAndSpaceAndReturnCode(const DataTagValue&
       available_space(available_space_in),
       return_code(std::move(code_in)) {}
 
+DataNameAndSpaceAndReturnCode::DataNameAndSpaceAndReturnCode(maidsafe_error error)
+    : name(), available_space(), return_code(error) {}
+
 DataNameAndSpaceAndReturnCode::DataNameAndSpaceAndReturnCode(DataNameAndSpaceAndReturnCode&& other)
     : name(std::move(other.name)),
       available_space(std::move(other.available_space)),
@@ -732,12 +898,15 @@ bool operator==(const DataNameAndSpaceAndReturnCode& lhs,
 // ==================== PmidHealthAndReturnCode ====================================================
 PmidHealthAndReturnCode::PmidHealthAndReturnCode(const nfs_vault::PmidHealth& pmid_health_in,
                                                  const nfs_client::ReturnCode& code_in)
-      : pmid_health(pmid_health_in), return_code(code_in) {
+    : pmid_health(pmid_health_in), return_code(code_in) {
   LOG(kVerbose) << "PmidHealthAndReturnCode pmid_health.serialised_pmid_health : "
                 << HexSubstr(pmid_health.serialised_pmid_health)
                 << " pmid_health.Serialise() " << HexSubstr(pmid_health.Serialise())
                 << " return_code : " << return_code.value.what();
 }
+
+PmidHealthAndReturnCode::PmidHealthAndReturnCode(maidsafe_error error)
+    : pmid_health(), return_code(error) {}
 
 PmidHealthAndReturnCode::PmidHealthAndReturnCode(const std::string& serialised_copy) {
   protobuf::PmidHealthAndReturnCode pmid_health_proto;
@@ -806,10 +975,10 @@ bool IsSuccess<nfs_client::DataNameAndContentOrReturnCode>(
     LOG(kVerbose) << "IsSuccess<nfs_client::nfs_client::DataNameAndContentOrReturnCode> "
                   << " data fetched, data_name_and_return_code not initialized";
   } else {
-    if (response.return_code) {
+    if (response.return_code.value.code() != CommonErrors::success) {
       LOG(kWarning)
           << "IsSuccess<nfs_client::nfs_client::DataNameAndContentOrReturnCode> return_code "
-          << response.return_code->value.what();
+          << response.return_code.value.what();
     } else {
       LOG(kError) << "IsSuccess<nfs_client::nfs_client::DataNameAndContentOrReturnCode>"
                   << " neither data or data_name_and_return_code is initialized";
@@ -822,12 +991,7 @@ bool IsSuccess<nfs_client::DataNameAndContentOrReturnCode>(
 template <>
 std::error_code ErrorCode<nfs_client::DataNameAndContentOrReturnCode>(
     const nfs_client::DataNameAndContentOrReturnCode& response) {
-  if (response.return_code)
-    return response.return_code->value.code();
-  else if (response.content)
-    return std::error_code(CommonErrors::success);
-  else
-    return std::error_code(NfsErrors::timed_out);
+  return response.return_code.value.code();
 }
 
 template <>
@@ -835,15 +999,17 @@ bool IsSuccess<nfs_client::StructuredDataNameAndContentOrReturnCode>(
     const nfs_client::StructuredDataNameAndContentOrReturnCode& response) {
   if (response.structured_data) {
     LOG(kVerbose) << "IsSuccess<nfs_client::nfs_client::StructuredDataNameAndContentOrReturnCode> "
-                  << " structured_data fetched, data_name_and_return_code not initialized";
+                  << " structured_data fetched, data_name and return_code not initialized";
   } else {
-    if (response.data_name_and_return_code)
-      LOG(kWarning) << "IsSuccess<nfs_client::nfs_client::StructuredDataNameAndContentOrReturnCode>"
-                    << " return_code "
-                    << response.data_name_and_return_code->return_code.value.what();
-    else
+    if (response.data_name) {
+      if (response.return_code.value.code() != CommonErrors::success)
+        LOG(kWarning)
+            << "IsSuccess<nfs_client::nfs_client::StructuredDataNameAndContentOrReturnCode>"
+            << " return_code " << response.return_code.value.what();
+    } else {
       LOG(kError) << "IsSuccess<nfs_client::nfs_client::StructuredDataNameAndContentOrReturnCode>"
-                  << " neither structured_data or data_name_and_return_code is initialized";
+                  << " neither structured_data or data_name and return_code is initialized";
+    }
   }
   return response.structured_data;
 }
@@ -851,12 +1017,7 @@ bool IsSuccess<nfs_client::StructuredDataNameAndContentOrReturnCode>(
 template <>
 std::error_code ErrorCode<nfs_client::StructuredDataNameAndContentOrReturnCode>(
     const nfs_client::StructuredDataNameAndContentOrReturnCode& response) {
-  if (response.data_name_and_return_code)
-    return response.data_name_and_return_code->return_code.value.code();
-  else if (response.structured_data)
-    return std::error_code(CommonErrors::success);
-  else
-    return std::error_code(NfsErrors::timed_out);
+  return response.return_code.value.code();
 }
 
 }  // namespace nfs

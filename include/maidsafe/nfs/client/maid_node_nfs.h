@@ -75,14 +75,16 @@ class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
   OnNetworkHealthChange& network_health_change_signal();
 
   //========================== Data accessors and mutators =========================================
+  // (TODO) review: increased timeout for Windows debug mode tests
   template <typename DataName>
   boost::future<typename DataName::data_type> Get(
       const DataName& data_name,
-      const std::chrono::steady_clock::duration& timeout = std::chrono::seconds(10));
+      const std::chrono::steady_clock::duration& timeout = std::chrono::seconds(30));
 
+  // (TODO) review: large timeout added for Windows debug mode testing
   template <typename Data>
   boost::future<void> Put(const Data& data, const std::chrono::steady_clock::duration& timeout =
-                                                std::chrono::seconds(10));
+                                                std::chrono::seconds(300));
 
   template <typename DataName>
   void Delete(const DataName& data_name);
@@ -114,12 +116,13 @@ class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
                                const std::chrono::steady_clock::duration& timeout =
                                    std::chrono::seconds(10));
 
+  // (TODO) review: increased timeout for Windows debug mode tests
   template <typename DataName>
   PutVersionFuture PutVersion(const DataName& data_name,
                               const StructuredDataVersions::VersionName& old_version_name,
                               const StructuredDataVersions::VersionName& new_version_name,
                               const std::chrono::steady_clock::duration& timeout =
-                                  std::chrono::seconds(10));
+                                  std::chrono::seconds(120));
 
   template <typename DataName>
   void DeleteBranchUntilFork(const DataName& data_name,
@@ -127,7 +130,7 @@ class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
   // TODO(Prakash): This can move to private section
   boost::future<void> CreateAccount(const nfs_vault::AccountCreation& account_creation,
                                     const std::chrono::steady_clock::duration& timeout =
-                                        std::chrono::seconds(10));
+                                        std::chrono::seconds(30));
 
   void RemoveAccount(const nfs_vault::AccountRemoval& account_removal);
 
@@ -219,7 +222,7 @@ boost::future<void> MaidNodeNfs::Put(const Data& data,
   NodeId node_id;
   passport::PublicPmid::Name pmid_hint(Identity((node_id.string())));
 
-  auto response_functor([promise](const nfs_client::ReturnCode& result) {
+  auto response_functor([=](nfs_client::PutReturnCode result) {
                            HandlePutResponseResult(result, promise);
                         });
   auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(routing::Parameters::group_size - 1,
@@ -259,7 +262,7 @@ boost::future<void> MaidNodeNfs::CreateVersionTree(const DataName& data_name,
   LOG(kVerbose) << "MaidNodeNfs Create Version " << HexSubstr(data_name.value);
   typedef MaidNodeService::CreateVersionTreeResponse::Contents ResponseContents;
   auto promise(std::make_shared<boost::promise<void>>());
-  auto response_functor([promise](const nfs_client::ReturnCode& result) {
+  auto response_functor([promise](const CreateVersionTreeReturnCode& result) {
                            HandleCreateVersionTreeResult(result, promise);
                         });
   auto op_data(std::make_shared<nfs::OpData<ResponseContents>>(1, response_functor));

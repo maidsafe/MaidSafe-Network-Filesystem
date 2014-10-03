@@ -1,11 +1,11 @@
 Action:GetResponse                Source:DataManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::DataNameAndContentOrReturnCode            Cacheable
-Action:PutResponse                Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::ReturnCode
+Action:PutResponse                Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::PutReturnCode
 Action:GetCachedResponse          Source:CacheHandler:Single    Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::DataNameAndContentOrReturnCode            Cacheable
 Action:PutFailure                 Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::DataNameAndReturnCode
 Action:GetVersionsResponse        Source:VersionHandler:Group   Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::StructuredDataNameAndContentOrReturnCode
 Action:GetBranchResponse          Source:VersionHandler:Group   Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::StructuredDataNameAndContentOrReturnCode
 Action:PmidHealthResponse         Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::AvailableSizeAndReturnCode
-Action:CreateAccountResponse      Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::ReturnCode
+Action:CreateAccountResponse      Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::CreateAccountReturnCode
 Action:PutVersionResponse         Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::TipOfTreeAndReturnCode
-Action:CreateVersionTreeResponse  Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::ReturnCode
-Action:RegisterPmidResponse       Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::ReturnCode
+Action:CreateVersionTreeResponse  Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::CreateVersionTreeReturnCode
+Action:RegisterPmidResponse       Source:MaidManager:Group      Destination:MaidNode:Single        Contents:struct:maidsafe::nfs_client::PmidRegistrationAndReturnCode

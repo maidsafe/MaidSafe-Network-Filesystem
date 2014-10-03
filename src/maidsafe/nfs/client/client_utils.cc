@@ -29,14 +29,10 @@ void HandleGetVersionsOrBranchResult(
   try {
     if (result.structured_data) {
       promise->set_value(result.structured_data->versions);
-    } else if (result.data_name_and_return_code) {
-      LOG(kInfo) << "nfs_client::HandleGetVersionsOrBranchResult"
-                 << " error during get version or branch";
-      boost::throw_exception(result.data_name_and_return_code->return_code.value);
     } else {
       LOG(kInfo) << "nfs_client::HandleGetVersionsOrBranchResult"
-                 << " uninitialised during get version or branch";
-      BOOST_THROW_EXCEPTION(MakeError(CommonErrors::uninitialised));
+                 << " error during get version or branch";
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
@@ -46,7 +42,7 @@ void HandleGetVersionsOrBranchResult(
   }
 }
 
-void HandleCreateAccountResult(const ReturnCode& result,
+void HandleCreateAccountResult(const CreateAccountReturnCode& result,
                                std::shared_ptr<boost::promise<void>> promise) {
   LOG(kVerbose) << "nfs_client::HandleCreateAccountResult";
   try {
@@ -55,7 +51,7 @@ void HandleCreateAccountResult(const ReturnCode& result,
       promise->set_value();
     } else {
       LOG(kWarning) << "nfs_client::HandleCreateAccountResult error during create account";
-      boost::throw_exception(result.value);
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
@@ -64,7 +60,7 @@ void HandleCreateAccountResult(const ReturnCode& result,
   }
 }
 
-void HandlePutResponseResult(const ReturnCode& result,
+void HandlePutResponseResult(PutReturnCode result,
                              std::shared_ptr<boost::promise<void>> promise) {
   LOG(kVerbose) << "nfs_client::HandlePutResponseResult";
   try {
@@ -73,7 +69,7 @@ void HandlePutResponseResult(const ReturnCode& result,
       promise->set_value();
     } else {
       LOG(kWarning) << "nfs_client::HandlePutResponseResult error in Put";
-      boost::throw_exception(result.value);
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
@@ -92,7 +88,7 @@ void HandlePmidHealthResult(const AvailableSizeAndReturnCode& result,
       promise->set_value(result.available_size.available_size);
     } else {
       LOG(kWarning) << "nfs_client::HandlePmidHealthResult error during getPmidHealth";
-      boost::throw_exception(result.return_code.value);
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
@@ -101,7 +97,7 @@ void HandlePmidHealthResult(const AvailableSizeAndReturnCode& result,
   }
 }
 
-void HandleCreateVersionTreeResult(const ReturnCode& result,
+void HandleCreateVersionTreeResult(const CreateVersionTreeReturnCode& result,
                                    std::shared_ptr<boost::promise<void>> promise) {
   LOG(kVerbose) << "nfs_client::HandleCreateVersionTreeResult";
   try {
@@ -110,7 +106,7 @@ void HandleCreateVersionTreeResult(const ReturnCode& result,
       promise->set_value();
     } else {
       LOG(kWarning) << "nfs_client::HandleCreateVersionTreeResult error during version creation";
-      boost::throw_exception(result.value);
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
@@ -132,7 +128,7 @@ void HandlePutVersionResult(
       promise->set_value(std::move(tip_of_tree));
     } else {
       LOG(kWarning) << "nfs_client::HandlePutVersionResult error during put version";
-      boost::throw_exception(result.return_code.value);
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
@@ -141,7 +137,7 @@ void HandlePutVersionResult(
   }
 }
 
-void HandleRegisterPmidResult(const ReturnCode& result,
+void HandleRegisterPmidResult(const PmidRegistrationAndReturnCode& result,
                               std::shared_ptr<boost::promise<void>> promise) {
   LOG(kVerbose) << "nfs_client::HandleRegisterPmidResult";
   try {
@@ -150,7 +146,7 @@ void HandleRegisterPmidResult(const ReturnCode& result,
       promise->set_value();
     } else {
       LOG(kWarning) << "nfs_client::HandleRegisterPmidResult error during pmid registration";
-      boost::throw_exception(result.value);
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {

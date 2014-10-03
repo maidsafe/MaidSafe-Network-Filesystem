@@ -142,6 +142,10 @@ GetSuccessOrMostFrequentResponse(const std::vector<MessageContents>& responses,
         most_frequent = this_reply_count;
         most_frequent_itr = itr;
       }
+      if (itr->return_code.value.code() == RoutingErrors::timed_out ||
+          itr->return_code.value.code() == RoutingErrors::timer_cancelled) {
+        return std::make_pair(itr, true);
+      }
     }
   }
   return std::make_pair(most_frequent_itr, false);
@@ -187,7 +191,7 @@ void OpData<MessageContents>::HandleResponseContents(MessageContents&& response_
     }
   }
   LOG(kInfo) << "OpData<MessageContents>::HandleResponseContents call back";
-  callback(*result_ptr);
+  callback(std::move(*result_ptr));
 }
 
 }  // namespace nfs
