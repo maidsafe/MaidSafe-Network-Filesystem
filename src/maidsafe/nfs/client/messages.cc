@@ -648,7 +648,8 @@ CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(const CreateVersionTree
 CreateVersionTreeReturnCode::CreateVersionTreeReturnCode(CreateVersionTreeReturnCode&& other)
   : return_code(std::move(other.return_code)) {}
 
-CreateVersionTreeReturnCode& CreateVersionTreeReturnCode::operator=(CreateVersionTreeReturnCode other) {
+CreateVersionTreeReturnCode& CreateVersionTreeReturnCode::operator=(
+    CreateVersionTreeReturnCode other) {
   swap(*this, other);
   return *this;
 }
