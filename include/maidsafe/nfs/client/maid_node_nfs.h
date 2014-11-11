@@ -62,7 +62,6 @@ class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
  public:
   typedef boost::future<std::vector<StructuredDataVersions::VersionName>> VersionNamesFuture;
   typedef boost::future<std::unique_ptr<StructuredDataVersions::VersionName>> PutVersionFuture;
-  typedef boost::future<uint64_t> PmidHealthFuture;
   typedef boost::signals2::signal<void(int32_t)> OnNetworkHealthChange;
 
   // Logging in for already existing maid accounts
@@ -86,15 +85,6 @@ class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
 
   template <typename DataName>
   void Delete(const DataName& data_name);
-
-  void IncrementReferenceCount(const std::vector<ImmutableData::Name>& /*data_names*/) {}
-  void DecrementReferenceCount(const std::vector<ImmutableData::Name>& /*data_names*/) {}
-
-  template <typename DataName>
-  void IncrementReferenceCount(const DataName& data_name);
-
-  template <typename DataName>
-  void DecrementReferenceCount(const DataName& data_name);
 
   template <typename DataName>
   boost::future<void> CreateVersionTree(const DataName& data_name,
@@ -131,22 +121,12 @@ class MaidNodeNfs : public std::enable_shared_from_this<MaidNodeNfs>  {
 
   void RemoveAccount(const nfs_vault::AccountRemoval& account_removal);
 
-  boost::future<void> RegisterPmid(const passport::Pmid& pmid,
-                                   const std::chrono::steady_clock::duration& timeout =
-                                       std::chrono::seconds(10));
-
-  void UnregisterPmid(const passport::PublicPmid::Name& pmid_name);
-
-  PmidHealthFuture GetPmidHealth(const passport::PublicPmid::Name& pmid_name,
-                                 const std::chrono::steady_clock::duration& timeout =
-                                     std::chrono::seconds(10));
   friend class vault_manager::tools::PublicPmidStorer;
  private:
   typedef std::function<void(const DataNameAndContentOrReturnCode&)> GetFunctor;
   typedef std::function<void(const StructuredDataNameAndContentOrReturnCode&)> GetVersionsFunctor;
   typedef std::function<void(const StructuredDataNameAndContentOrReturnCode&)> GetBranchFunctor;
   typedef boost::promise<std::vector<StructuredDataVersions::VersionName>> VersionNamesPromise;
-  typedef std::function<void(const AvailableSizeAndReturnCode&)> PmidHealthFunctor;
 
   explicit MaidNodeNfs(const passport::Maid& maid);
 
@@ -241,14 +221,6 @@ boost::future<void> MaidNodeNfs::Put(const Data& data,
 template <typename DataName>
 void MaidNodeNfs::Delete(const DataName& data_name) {
   dispatcher_.SendDeleteRequest(data_name);
-}
-
-template <typename DataName>
-void MaidNodeNfs::IncrementReferenceCount(const DataName& /*data_name*/) {
-}
-
-template <typename DataName>
-void MaidNodeNfs::DecrementReferenceCount(const DataName& /*data_name*/) {
 }
 
 template <typename DataName>
