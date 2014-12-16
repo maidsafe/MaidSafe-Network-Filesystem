@@ -24,6 +24,7 @@ namespace nfs {
 
 namespace test {
 
+
 TEST_F(MaidNodeNfsTest, FUNC_Constructor) {
   auto maid_and_signer(passport::CreateMaidAndSigner());
   {
@@ -31,13 +32,6 @@ TEST_F(MaidNodeNfsTest, FUNC_Constructor) {
   }
   LOG(kInfo) << "joining existing account";
   auto nfs_existing_account = nfs_client::MaidNodeNfs::MakeShared(maid_and_signer.first);
-}
-
-TEST_F(MaidNodeNfsTest, FUNC_FailingGet) {
-  ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
-  AddClient();
-  auto future(clients_.back()->Get<ImmutableData::Name>(data.name()));
-  EXPECT_THROW(future.get(), std::exception) << "must have failed";
 }
 
 TEST_F(MaidNodeNfsTest, FUNC_PutGet) {
@@ -48,7 +42,8 @@ TEST_F(MaidNodeNfsTest, FUNC_PutGet) {
     auto future(clients_.back()->Put(data));
     EXPECT_NO_THROW(future.get());
     LOG(kVerbose) << "After put";
-  } catch (...) {
+  }
+  catch (...) {
     GTEST_FAIL() << "Failed to put: " << DebugId(NodeId(data.name()->string()));
   }
 
@@ -56,8 +51,94 @@ TEST_F(MaidNodeNfsTest, FUNC_PutGet) {
   try {
     auto retrieved(future.get());
     EXPECT_EQ(retrieved.data(), data.data());
-  } catch (...) {
+  }
+  catch (...) {
     GTEST_FAIL() << "Failed to retrieve: " << DebugId(NodeId(data.name()->string()));
+  }
+}
+
+TEST_F(MaidNodeNfsTest, FUNC_FailingGet) {
+  ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
+  AddClient();
+  auto future(clients_.back()->Get<ImmutableData::Name>(data.name()));
+  EXPECT_THROW(future.get(), std::exception) << "must have failed";
+}
+
+TEST_F(MaidNodeNfsTest, FUNC_PutTimeout) {
+  AddClient();
+  ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
+  std::chrono::steady_clock::duration timeout(std::chrono::microseconds(1));
+  auto future(clients_.back()->Put(data, timeout));
+
+  try {
+    future.get();
+    EXPECT_TRUE(false) << "Unexpected put success: " << DebugId(NodeId(data.name()->string()));
+  }
+  catch (const maidsafe_error& error) {
+    EXPECT_EQ(make_error_code(RoutingErrors::timed_out), error.code());
+  }
+}
+
+TEST_F(MaidNodeNfsTest, FUNC_PutCancelled) {
+  AddClient();
+  ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
+  std::chrono::steady_clock::duration timeout(std::chrono::minutes(10));
+  auto future(clients_.back()->Put(data, timeout));
+  EXPECT_NO_THROW(clients_.back()->Stop());
+
+  try {
+    future.get();
+    EXPECT_TRUE(false) << "Unexpected put success: " << DebugId(NodeId(data.name()->string()));
+  }
+  catch (const maidsafe_error& error) {
+    EXPECT_EQ(make_error_code(RoutingErrors::timer_cancelled), error.code());
+  }
+}
+
+TEST_F(MaidNodeNfsTest, FUNC_GetTimeout) {
+  AddClient();
+  ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
+  try {
+    auto future(clients_.back()->Put(data));
+    EXPECT_NO_THROW(future.get());
+  }
+  catch (...) {
+    EXPECT_TRUE(false) << "Failed to put: " << DebugId(NodeId(data.name()->string()));
+  }
+
+  std::chrono::steady_clock::duration timeout(std::chrono::microseconds(1));
+  auto future(clients_.back()->Get<ImmutableData::Name>(data.name(), timeout));
+
+  try {
+    auto retrieved(future.get());
+    EXPECT_TRUE(false) << "Unexpected get success: " << DebugId(NodeId(data.name()->string()));
+  }
+  catch (const maidsafe_error& error) {
+    EXPECT_EQ(make_error_code(RoutingErrors::timed_out), error.code());
+  }
+}
+
+TEST_F(MaidNodeNfsTest, FUNC_GetCancelled) {
+  AddClient();
+  ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
+  try {
+    auto future(clients_.back()->Put(data));
+    EXPECT_NO_THROW(future.get());
+  }
+  catch (...) {
+    EXPECT_TRUE(false) << "Failed to put: " << DebugId(NodeId(data.name()->string()));
+  }
+
+  std::chrono::steady_clock::duration timeout(std::chrono::minutes(10));
+  auto future(clients_.back()->Get<ImmutableData::Name>(data.name(), timeout));
+  EXPECT_NO_THROW(clients_.back()->Stop());
+
+  try {
+    auto retrieved(future.get());
+    EXPECT_TRUE(false) << "Unexpected get success: " << DebugId(NodeId(data.name()->string()));
+  }
+  catch (const maidsafe_error& error) {
+    EXPECT_EQ(make_error_code(RoutingErrors::timer_cancelled), error.code());
   }
 }
 

@@ -25,6 +25,14 @@ message ReturnCode {
   required bytes error_category_name = 2;
 }
 
+message PutReturnCode {
+  required bytes serialised_return_code = 1;
+}
+
+message CreateAccountReturnCode {
+  required bytes serialised_return_code = 1;
+}
+
 message AvailableSizeAndReturnCode {
   required bytes serialised_available_size = 1;
   required bytes serialised_return_code = 2;
@@ -63,7 +71,8 @@ message DataNameAndContentOrReturnCode {
 
 message StructuredDataNameAndContentOrReturnCode {
   optional bytes serialised_structured_data = 1;
-  optional bytes serialised_data_name_and_return_code = 2;
+  optional bytes serialised_data_name = 2;
+  optional bytes serialised_return_code = 3;
 }
 
 message DataPmidHintAndReturnCode {
@@ -91,6 +100,10 @@ message DataNameAndSpaceAndReturnCode {
 message PmidHealthAndReturnCode {
   required bytes serialised_pmid_health = 1;
   required bytes serialised_return_code = 2;
+}
+
+message CreateVersionTreeReturnCode {
+  required bytes serialised_return_code = 1;
 }
 
 message TipOfTreeAndReturnCode {

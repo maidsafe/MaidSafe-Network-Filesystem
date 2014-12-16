@@ -583,28 +583,30 @@ void swap(DataAndPmidHint& lhs, DataAndPmidHint& rhs) MAIDSAFE_NOEXCEPT {
 
 // ========================== DataNameAndContentOrCheckResult ======================================
 
-DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(
-    const DataTagValue& type_in, const Identity& name_in, const NonEmptyString& content_in)
-        : name(type_in, name_in), content(content_in), check_result() {}
+DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(const DataTagValue& type_in,
+    const Identity& name_in, const NonEmptyString& content_in)
+      : pmid_name(), name(type_in, name_in), content(content_in), check_result(), error() {}
 
-DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(
-    const DataTagValue& type_in, const Identity& name_in, const CheckResult& check_result_in)
-        : name(type_in, name_in), content(), check_result(check_result_in) {}
+DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(const DataTagValue& type_in,
+    const Identity& name_in, const CheckResult& check_result_in)
+      : pmid_name(), name(type_in, name_in), content(), check_result(check_result_in), error() {}
 
 DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult()
-    : name(), content(), check_result() {}
+      : pmid_name(), name(), content(), check_result(), error() {}
+
+DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(maidsafe_error error_in)
+      : pmid_name(), name(), content(), check_result(), error(error_in) {}
 
 DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(
     DataNameAndContentOrCheckResult&& other)
-        : name(std::move(other.name)),
-          content(std::move(other.content)),
-          check_result(std::move(other.check_result)) {}
+      : pmid_name(std::move(other.pmid_name)), name(std::move(other.name)),
+        content(std::move(other.content)), check_result(std::move(other.check_result)),
+        error(std::move(other.error)) {}
 
 DataNameAndContentOrCheckResult::DataNameAndContentOrCheckResult(
     const DataNameAndContentOrCheckResult& other)
-        : name(other.name),
-          content(other.content),
-          check_result(other.check_result) {}
+      : pmid_name(other.pmid_name), name(other.name), content(other.content),
+        check_result(other.check_result), error(other.error) {}
 
 DataNameAndContentOrCheckResult& DataNameAndContentOrCheckResult::operator=(
     DataNameAndContentOrCheckResult other) {

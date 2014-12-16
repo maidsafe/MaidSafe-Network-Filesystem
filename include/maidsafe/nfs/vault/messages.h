@@ -329,20 +329,28 @@ void swap(DataAndPmidHint& lhs, DataAndPmidHint& rhs) MAIDSAFE_NOEXCEPT;
 
 struct DataNameAndContentOrCheckResult {
   typedef crypto::SHA512Hash CheckResult;
+  typedef passport::PublicPmid::Name PmidName;
+
+  template <typename DataNameType>
+  DataNameAndContentOrCheckResult(const PmidName& pmid_name_in, const DataNameType& name_in,
+                                  const NonEmptyString& content_in)
+      : pmid_name(pmid_name_in), name(name_in), content(content_in), check_result(), error() {}
+
+  template <typename DataNameType>
+  DataNameAndContentOrCheckResult(const PmidName& pmid_name_in, const DataNameType& name_in,
+                                  const CheckResult& check_result_in)
+      : pmid_name(pmid_name_in), name(name_in), content(), check_result(check_result_in), error() {}
 
   template <typename DataNameType>
   DataNameAndContentOrCheckResult(const DataNameType& name_in, const NonEmptyString& content_in)
-      : name(name_in), content(content_in), check_result() {}
-
-  template <typename DataNameType>
-  DataNameAndContentOrCheckResult(const DataNameType& name_in, const CheckResult& check_result_in)
-      : name(name_in), content(), check_result(check_result_in) {}
+      : pmid_name(), name(name_in), content(content_in), check_result(), error() {}
 
   DataNameAndContentOrCheckResult(const DataTagValue& type_in, const Identity& name_in,
                                   const NonEmptyString& content_in);
   DataNameAndContentOrCheckResult(const DataTagValue& type_in, const Identity& name_in,
                                   const CheckResult& check_result_in);
   DataNameAndContentOrCheckResult();
+  explicit DataNameAndContentOrCheckResult(maidsafe_error error_in);
   DataNameAndContentOrCheckResult(const DataNameAndContentOrCheckResult& other);
   DataNameAndContentOrCheckResult(DataNameAndContentOrCheckResult&& other);
   DataNameAndContentOrCheckResult& operator=(DataNameAndContentOrCheckResult other);
@@ -350,9 +358,11 @@ struct DataNameAndContentOrCheckResult {
   explicit DataNameAndContentOrCheckResult(const std::string& serialised_copy);
   std::string Serialise() const;
 
+  PmidName pmid_name;
   DataName name;
   boost::optional<NonEmptyString> content;
   boost::optional<CheckResult> check_result;
+  boost::optional<maidsafe_error> error;
 };
 
 void swap(DataNameAndContentOrCheckResult& lhs,

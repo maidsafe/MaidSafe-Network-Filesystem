@@ -45,27 +45,27 @@ struct HandleGetResult {
   std::shared_ptr<boost::promise<Data>> promise;
 };
 
-void HandlePutResponseResult(const ReturnCode& result,
+void HandlePutResponseResult(PutReturnCode result,
                              std::shared_ptr<boost::promise<void>> promise);
 
 void HandleGetVersionsOrBranchResult(
     const StructuredDataNameAndContentOrReturnCode& result,
     std::shared_ptr<boost::promise<std::vector<StructuredDataVersions::VersionName>>> promise);
 
-void HandleCreateAccountResult(const ReturnCode& result,
+void HandleCreateAccountResult(const CreateAccountReturnCode& result,
                                std::shared_ptr<boost::promise<void>> promise);
 
 void HandlePmidHealthResult(const AvailableSizeAndReturnCode& result,
                             std::shared_ptr<boost::promise<uint64_t>> promise);
 
-void HandleCreateVersionTreeResult(const ReturnCode& result,
+void HandleCreateVersionTreeResult(const CreateVersionTreeReturnCode& result,
                                    std::shared_ptr<boost::promise<void>> promise);
 
 void HandlePutVersionResult(
     const TipOfTreeAndReturnCode& result,
     std::shared_ptr<boost::promise<std::unique_ptr<StructuredDataVersions::VersionName>>> promise);
 
-void HandleRegisterPmidResult(const ReturnCode& result,
+void HandleRegisterPmidResult(const PmidRegistrationAndReturnCode& result,
                               std::shared_ptr<boost::promise<void>> promise);
 
 // ==================== Implementation =============================================================
@@ -75,26 +75,22 @@ void HandleGetResult<Data>::operator()(const DataNameAndContentOrReturnCode& res
   try {
     if (result.content) {
       if (result.name.type != Data::Tag::kValue) {
-        LOG(kError) << "HandleGetResult incorrect returned data";
+        LOG(kError) << "HandleGetResult returned incorrect data type.";
         BOOST_THROW_EXCEPTION(MakeError(CommonErrors::invalid_parameter));
       }
-      LOG(kInfo) << "HandleGetResult fetched chunk has name : "
+      LOG(kInfo) << "HandleGetResult chunk fetched has name : "
                  << HexSubstr(result.name.raw_name) << " and content : "
                  << HexSubstr(result.content->data);
       Data data(typename Data::Name(result.name.raw_name),
                 typename Data::serialised_type(NonEmptyString(result.content->data)));
       promise->set_value(data);
-    } else if (result.return_code) {
-      LOG(kWarning) << "HandleGetResult don't have a result but having a return code "
-                    << result.return_code->value.what();
-      boost::throw_exception(result.return_code->value);
     } else {
-      LOG(kError) << "HandleGetResult result uninitialised";
-      BOOST_THROW_EXCEPTION(MakeError(CommonErrors::uninitialised));
+      LOG(kWarning) << "HandleGetResult error " << result.return_code.value.what();
+      BOOST_THROW_EXCEPTION(result.return_code.value);
     }
   }
   catch (...) {
-    LOG(kError) << "processing error when try to parsing the result of get";
+    LOG(kError) << "Processing error when try to parse result of get.";
     promise->set_exception(boost::current_exception());
   }
 }
