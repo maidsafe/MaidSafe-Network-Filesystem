@@ -24,7 +24,7 @@ namespace nfs {
 
 namespace test {
 
-TEST_F(MaidClientTest, FUNC_Constructor) {
+TEST_F(MaidClientTest, NETWORK_Constructor) {
   auto maid_and_signer(passport::CreateMaidAndSigner());
   {
     auto nfs_new_account = nfs_client::MaidClient::MakeShared(maid_and_signer);
@@ -33,14 +33,14 @@ TEST_F(MaidClientTest, FUNC_Constructor) {
   auto nfs_existing_account = nfs_client::MaidClient::MakeShared(maid_and_signer.first);
 }
 
-TEST_F(MaidClientTest, FUNC_FailingGet) {
+TEST_F(MaidClientTest, NETWORK_FailingGet) {
   ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
   AddClient();
   auto future(clients_.back()->Get<ImmutableData::Name>(data.name(), std::chrono::seconds(10)));
   EXPECT_THROW(future.get(), std::exception) << "must have failed";
 }
 
-TEST_F(MaidClientTest, FUNC_PutGet) {
+TEST_F(MaidClientTest, NETWORK_PutGet) {
   AddClient();
   ImmutableData data(NonEmptyString(RandomString(kTestChunkSize)));
   LOG(kVerbose) << "Before put";
@@ -61,7 +61,7 @@ TEST_F(MaidClientTest, FUNC_PutGet) {
   }
 }
 
-TEST_F(MaidClientTest, FUNC_MultipleSequentialPuts) {
+TEST_F(MaidClientTest, NETWORK_MultipleSequentialPuts) {
   routing::Parameters::caching = true;
   const size_t kIterations(10);
   GenerateChunks(kIterations);
@@ -82,20 +82,20 @@ TEST_F(MaidClientTest, FUNC_MultipleSequentialPuts) {
   LOG(kVerbose) << "Multiple sequential puts is finished successfully";
 }
 
-TEST_F(MaidClientTest, FUNC_MultipleParallelPuts) {
+TEST_F(MaidClientTest, NETWORK_MultipleParallelPuts) {
   routing::Parameters::caching = false;
   LOG(kVerbose) << "put 10 chunks with 1 clients";
   PutGetTest(1, 10);
   LOG(kVerbose) << "Multiple parallel puts test has finished successfully";
 }
 
-TEST_F(MaidClientTest, FUNC_MultipleClientsPut) {
+TEST_F(MaidClientTest, NETWORK_MultipleClientsPut) {
   LOG(kVerbose) << "put 10 chunks with 5 clients";
   PutGetTest(5, 10);
   LOG(kVerbose) << "Put with multiple clients test has finished successfully";
 }
 
-TEST_F(MaidClientTest, FUNC_DataFlooding) {
+TEST_F(MaidClientTest, NETWORK_DataFlooding) {
   LOG(kVerbose) << "flooding 100 chunks with 10 clients";
   PutGetTest(10, 100);
   LOG(kVerbose) << "Data flooding test has finished successfully";
@@ -151,7 +151,7 @@ TEST_F(MaidClientTest, DISABLED_FUNC_PutMultipleCopies) {
 }
 */
 
-TEST_F(MaidClientTest, FUNC_PopulateSingleBranchTree) {
+TEST_F(MaidClientTest, NETWORK_PopulateSingleBranchTree) {
   ImmutableData chunk(NonEmptyString(RandomAlphaNumericString(1024)));
   const size_t max_versions(5), max_branches(1);
   GenerateChunks(max_versions * 2);
@@ -190,7 +190,7 @@ TEST_F(MaidClientTest, FUNC_PopulateSingleBranchTree) {
   }
 }
 
-TEST_F(MaidClientTest, FUNC_PopulateMultipleBranchTree) {
+TEST_F(MaidClientTest, NETWORK_PopulateMultipleBranchTree) {
   VersionTreeTest(5, 4, 20);
   VersionTreeTest(100, 10, 60);
 }
