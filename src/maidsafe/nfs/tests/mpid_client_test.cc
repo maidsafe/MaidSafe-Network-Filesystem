@@ -24,7 +24,7 @@ namespace nfs {
 
 namespace test {
 
-TEST_F(MpidClientTest, FUNC_Constructor) {
+TEST_F(MpidClientTest, NETWORK_Constructor) {
   auto mpid_and_signer(passport::CreateMpidAndSigner());
   {
     auto new_account = nfs_client::MpidClient::MakeShared(mpid_and_signer);
