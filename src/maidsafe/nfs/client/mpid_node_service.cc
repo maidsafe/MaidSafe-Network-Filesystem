@@ -38,21 +38,17 @@ MpidNodeService::RpcTimers::RpcTimers(BoostAsioService& asio_service_)
     : message_alert_timer(asio_service_),
       get_message_timer(asio_service_),
       send_message_timer(asio_service_),
-      create_account_timer(asio_service_),
-      get_timer(asio_service_) {}
+      create_account_timer(asio_service_) {}
 
 void MpidNodeService::RpcTimers::CancellAll() {
   message_alert_timer.CancelAll();
   get_message_timer.CancelAll();
   send_message_timer.CancelAll();
   create_account_timer.CancelAll();
-  get_timer.CancelAll();
 }
 
-MpidNodeService::MpidNodeService(const routing::SingleId& receiver,
-                                 RpcTimers& rpc_timers,
-                                 GetHandler<MpidNodeDispatcher>& get_handler)
-    : kReceiver_(receiver), rpc_timers_(rpc_timers), get_handler_(get_handler) {}
+MpidNodeService::MpidNodeService(const routing::SingleId& receiver, RpcTimers& rpc_timers)
+    : kReceiver_(receiver), rpc_timers_(rpc_timers) {}
 
 void MpidNodeService::HandleMessage(const MessageAlert& message,
       const MessageAlert::Sender& /*sender*/, const MessageAlert::Receiver& receiver) {
@@ -107,38 +103,6 @@ void MpidNodeService::HandleMessage(const CreateAccountResponse& message,
   static_cast<void>(receiver);
   try {
     rpc_timers_.create_account_timer.AddResponse(message.id.data, *message.contents);
-  }
-  catch (const maidsafe_error& error) {
-    if (error.code() != NoSuchElement())
-      throw;
-    else
-      LOG(kWarning) << "Timer does not expect:" << message.id.data;
-  }
-}
-
-void MpidNodeService::HandleMessage(const GetResponse& message,
-                                    const GetResponse::Sender& /*sender*/,
-                                    const GetResponse::Receiver& receiver) {
-  assert(receiver == kReceiver_);
-  static_cast<void>(receiver);
-  try {
-    get_handler_.AddResponse(message.id.data, *message.contents);
-  }
-  catch (const maidsafe_error& error) {
-    if (error.code() != NoSuchElement())
-      throw;
-    else
-      LOG(kWarning) << "Timer does not expect:" << message.id.data;
-  }
-}
-
-void MpidNodeService::HandleMessage(const GetCachedResponse& message,
-                                    const GetCachedResponse::Sender& /*sender*/,
-                                    const GetCachedResponse::Receiver& receiver) {
-  assert(receiver == kReceiver_);
-  static_cast<void>(receiver);
-  try {
-    get_handler_.AddResponse(message.id.data, *message.contents);
   }
   catch (const maidsafe_error& error) {
     if (error.code() != NoSuchElement())

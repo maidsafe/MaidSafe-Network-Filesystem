@@ -49,12 +49,12 @@ MpidClient::MpidClient(const passport::Mpid& mpid)
       network_health_(-1),
       network_health_change_signal_(),
       routing_(maidsafe::make_unique<routing::Routing>(kMpid_)),
+      data_getter_(asio_service_, *routing_),
       public_pmid_helper_(),
       dispatcher_(*routing_),
-      get_handler_(rpc_timers_.get_timer, dispatcher_),
       service_([&]()->std::unique_ptr<MpidNodeService> {
         std::unique_ptr<MpidNodeService> service(
-          new MpidNodeService(routing::SingleId(routing_->kNodeId()), rpc_timers_, get_handler_));
+          new MpidNodeService(routing::SingleId(routing_->kNodeId()), rpc_timers_));
         return std::move(service);
       }()) {}
 

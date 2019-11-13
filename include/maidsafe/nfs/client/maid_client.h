@@ -356,7 +356,7 @@ void MaidClient::OnMessageReceived(const T& routing_message) {
 
 template <typename Sender, typename Receiver>
 void MaidClient::HandleMessage(const nfs::TypeErasedMessageWrapper& wrapper_tuple,
-                                const Sender& sender, const Receiver& receiver) {
+                               const Sender& sender, const Receiver& receiver) {
   const auto& destination_persona(std::get<2>(wrapper_tuple));
   static_assert(std::is_same<decltype(destination_persona),
                              const nfs::detail::DestinationTaggedValue&>::value,
@@ -365,7 +365,7 @@ void MaidClient::HandleMessage(const nfs::TypeErasedMessageWrapper& wrapper_tupl
     return service_.HandleMessage(wrapper_tuple, sender, receiver);
   auto action(std::get<0>(wrapper_tuple));
   auto source_persona(std::get<1>(wrapper_tuple).data);
-  LOG(kError) << " MaidClient::HandleMessage unhandled message from " << source_persona
+  LOG(kError) << "Unhandled message from " << source_persona
               << " " << action << " to " << destination_persona;
 }
 
