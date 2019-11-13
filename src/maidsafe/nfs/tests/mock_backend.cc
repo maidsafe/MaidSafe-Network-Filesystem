@@ -126,7 +126,7 @@ boost::future<void> MockBackend::DoPutChunk(const ImmutableData& data) {
   return SafeReturn(mock_.DoPutChunk(data));
 }
 
-boost::future<ImmutableData> MockBackend::DoGetChunk(const ImmutableData::Name& name) {
+boost::future<ImmutableData> MockBackend::DoGetChunk(const ImmutableData::NameAndTypeId& name) {
   return SafeReturn(mock_.DoGetChunk(name));
 }
 

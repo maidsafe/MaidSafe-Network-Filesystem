@@ -23,7 +23,7 @@
 
 #include "maidsafe/common/error.h"
 #include "maidsafe/common/log.h"
-#include "maidsafe/common/utils.h"
+#include "maidsafe/common/data_units.h"
 
 namespace maidsafe {
 namespace nfs {

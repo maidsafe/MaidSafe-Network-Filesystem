@@ -26,7 +26,7 @@ namespace maidsafe {
 namespace nfs {
 
 // Basic Expected elements always use std::error_code.
-template<typename T = void>
+template<typename T>
 using Expected = boost::expected<T, std::error_code>;
 
 }  // nfs

@@ -1,4 +1,4 @@
-/*  Copyright 2013 MaidSafe.net limited
+/*  Copyright 2015 MaidSafe.net limited
 
     This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
     version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
@@ -18,18 +18,16 @@
 #include "maidsafe/nfs/tests/network_fixture.h"
 
 #include "maidsafe/common/error.h"
+#include "maidsafe/common/test.h"
+#include "maidsafe/nfs/detail/disk_backend.h"
 
 namespace maidsafe {
 namespace nfs {
 namespace detail {
 namespace test {
-
 namespace {
-std::function<std::shared_ptr<Network::Interface>()>& GetCreator() {
-  static std::function<std::shared_ptr<Network::Interface>()> instance;
-  return instance;
+const maidsafe::DiskUsage kDefaultMaxDiskUsage(2000);
 }
-}  // namespace
 
 NetworkFixture::NetworkFixture()
   : mock_(std::make_shared<MockBackend>(Create())),
@@ -37,17 +35,17 @@ NetworkFixture::NetworkFixture()
   GetNetworkMock().SetDefaults();
 }
 
-void NetworkFixture::SetCreator(std::function<std::shared_ptr<Network::Interface>()> creator) {
-  GetCreator() = std::move(creator);
-}
-
 std::shared_ptr<Network::Interface> NetworkFixture::Create() {
-  const auto& creator = GetCreator();
-  if (!creator) {
-    BOOST_THROW_EXCEPTION(std::system_error(make_error_code(CommonErrors::null_pointer)));
-  }
+  // shared_ptr that erases folder when refcount == 0
+  const auto disk_space = ::maidsafe::test::CreateTestPath("MaidSafe_Test_FakeStore");
 
-  return creator();
+  auto delete_disk_backend = [disk_space] (maidsafe::nfs::detail::Network::Interface* interface) {
+    const std::unique_ptr<maidsafe::nfs::detail::Network::Interface> ptr(interface);
+  };
+
+  return std::shared_ptr<maidsafe::nfs::detail::Network::Interface>(
+      new maidsafe::nfs::detail::DiskBackend(*disk_space, kDefaultMaxDiskUsage),
+      std::move(delete_disk_backend));
 }
 
 NetworkFixture::~NetworkFixture() {}

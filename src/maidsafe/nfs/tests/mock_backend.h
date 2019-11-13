@@ -90,7 +90,7 @@ class MockBackend : public Network::Interface {
         std::shared_ptr<boost::future<void>>(const ImmutableData& data));
     MOCK_METHOD1(
         DoGetChunk,
-        std::shared_ptr<boost::future<ImmutableData>>(const ImmutableData::Name& name));
+        std::shared_ptr<boost::future<ImmutableData>>(const ImmutableData::NameAndTypeId& name));
 
    private:
     template<typename Function>
@@ -164,7 +164,8 @@ class MockBackend : public Network::Interface {
       const ContainerId& container_id, const ContainerVersion& tip) override final;
 
   virtual boost::future<void> DoPutChunk(const ImmutableData& data) override final;
-  virtual boost::future<ImmutableData> DoGetChunk(const ImmutableData::Name& name) override final;
+  virtual boost::future<ImmutableData> DoGetChunk(
+      const ImmutableData::NameAndTypeId& name) override final;
 };
 
 }  // namespace test

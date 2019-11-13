@@ -1,4 +1,4 @@
-/*  Copyright 2014 MaidSafe.net limited
+/*  Copyright 2015 MaidSafe.net limited
 
     This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
     version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
@@ -19,7 +19,10 @@
 #define MAIDSAFE_NFS_DETAIL_DISK_BACKEND_H_
 
 #include <cstdint>
+#include <mutex>
 #include <vector>
+
+#include "boost/filesystem/path.hpp"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -31,10 +34,10 @@
 #endif
 
 #include "maidsafe/common/data_types/immutable_data.h"
-#include "maidsafe/nfs/client/fake_store.h"
 #include "maidsafe/nfs/container_version.h"
 #include "maidsafe/nfs/detail/container_id.h"
 #include "maidsafe/nfs/detail/network.h"
+#include "maidsafe/nfs/expected.h"
 
 namespace maidsafe {
 namespace nfs {
@@ -43,12 +46,7 @@ namespace detail {
 // For legacy reasons, the network and disk versions are not using virtual dispatch
 class DiskBackend : public Network::Interface {
  public:
-  template<typename... Args>
-  explicit DiskBackend(Args... args)
-    : Network::Interface(),
-      backend_(std::forward<Args>(args)...) {
-  }
-
+  explicit DiskBackend(const boost::filesystem::path& disk_path, DiskUsage max_disk_usage);
   virtual ~DiskBackend();
 
  private:
@@ -73,10 +71,26 @@ class DiskBackend : public Network::Interface {
       const ContainerId& container_id, const ContainerVersion& tip) override final;
 
   virtual boost::future<void> DoPutChunk(const ImmutableData& data) override final;
-  virtual boost::future<ImmutableData> DoGetChunk(const ImmutableData::Name& name) override final;
+  virtual boost::future<ImmutableData> DoGetChunk(
+      const ImmutableData::NameAndTypeId& name) override final;
 
  private:
-  FakeStore backend_;
+  bool HasDiskSpace(std::uintmax_t required_space) const;
+  Expected<boost::filesystem::path> KeyToFilePath(
+      const Data::NameAndTypeId& key, bool create_if_missing) const;
+
+  Expected<std::unique_ptr<StructuredDataVersions>> ReadVersions(
+      const Data::NameAndTypeId& key) const;
+  Expected<void> WriteVersions(
+      const Data::NameAndTypeId& key, const StructuredDataVersions& versions, const bool creation);
+
+  Expected<void> Write(const boost::filesystem::path& path, const NonEmptyString& value);
+
+ private:
+  const boost::filesystem::path disk_path_;
+  const DiskUsage max_disk_usage_;
+  DiskUsage current_disk_usage_;
+  std::mutex mutex_;
 };
 
 }  // namespace detail

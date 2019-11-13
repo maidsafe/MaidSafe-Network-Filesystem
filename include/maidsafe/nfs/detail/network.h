@@ -75,7 +75,7 @@ class Network {
         const ContainerId& container_id, const ContainerVersion& tip) = 0;
 
     virtual boost::future<void> DoPutChunk(const ImmutableData& data) = 0;
-    virtual boost::future<ImmutableData> DoGetChunk(const ImmutableData::Name& name) = 0;
+    virtual boost::future<ImmutableData> DoGetChunk(const ImmutableData::NameAndTypeId& name) = 0;
 
    private:
     Interface(const Interface&) = delete;
@@ -183,7 +183,8 @@ class Network {
   }
 
   template<typename Token>
-  AsyncResultReturn<Token, ImmutableData> GetChunk(const ImmutableData::Name& name, Token token) {
+  AsyncResultReturn<Token, ImmutableData> GetChunk(
+      const ImmutableData::NameAndTypeId& name, Token token) {
     assert(interface_ != nullptr);
     using Handler = AsyncHandler<Token, ImmutableData>;
 

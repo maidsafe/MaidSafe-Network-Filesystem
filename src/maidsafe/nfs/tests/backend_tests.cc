@@ -223,7 +223,7 @@ TEST_F(BackendTest, DISABLED_BEH_UpdateExistingSDVBadRootFailure) {
   sdv = network()->PutSDVVersion(
       container_key.GetId(), container_version3, container_version2, asio::use_future).get();
   ASSERT_FALSE(sdv.valid());
-  EXPECT_EQ(make_error_code(CommonErrors::invalid_parameter), sdv.error());
+  EXPECT_EQ(make_error_code(CommonErrors::invalid_argument), sdv.error());
 
   const auto versions = network()->GetSDVVersions(container_key.GetId(), asio::use_future).get();
   ASSERT_TRUE(versions.valid());
@@ -253,7 +253,7 @@ TEST_F(BackendTest, BEH_UpdateExistingSDVSameTip) {
   sdv = network()->PutSDVVersion(
       container_key.GetId(), container_version, container_version, asio::use_future).get();
   ASSERT_FALSE(sdv.valid());
-  EXPECT_EQ(make_error_code(CommonErrors::invalid_parameter), sdv.error());
+  EXPECT_EQ(make_error_code(CommonErrors::invalid_argument), sdv.error());
 
   const auto versions = network()->GetSDVVersions(container_key.GetId(), asio::use_future).get();
   ASSERT_TRUE(versions.valid());
@@ -328,9 +328,9 @@ TEST_F(BackendTest, BEH_TwoSDVs) {
 // See MAID-657 for DISABLED_
 TEST_F(BackendTest, DISABLED_BEH_GetChunkFailure) {
   const ImmutableData chunk_data{MakeChunk()};
-  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.name())).Times(1);
+  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.NameAndType())).Times(1);
 
-  auto get_chunk = network()->GetChunk(chunk_data.name(), asio::use_future).get();
+  auto get_chunk = network()->GetChunk(chunk_data.NameAndType(), asio::use_future).get();
   ASSERT_FALSE(get_chunk.valid());
   EXPECT_EQ(make_error_code(CommonErrors::no_such_element), get_chunk.error());
 }
@@ -341,15 +341,15 @@ TEST_F(BackendTest, BEH_PutChunk) {
   const ImmutableData chunk_data{MakeChunk()};
 
   EXPECT_CALL(GetNetworkMock(), DoPutChunk(_)).Times(1);
-  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.name())).Times(1);
+  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.NameAndType())).Times(1);
 
   const auto put_chunk = network()->PutChunk(chunk_data, asio::use_future).get();
   EXPECT_TRUE(put_chunk.valid());
 
-  auto get_chunk = network()->GetChunk(chunk_data.name(), asio::use_future).get();
+  auto get_chunk = network()->GetChunk(chunk_data.NameAndType(), asio::use_future).get();
   ASSERT_TRUE(get_chunk.valid());
-  EXPECT_EQ(chunk_data.name(), get_chunk->name());
-  EXPECT_EQ(chunk_data.data(), get_chunk->data());
+  EXPECT_EQ(chunk_data.NameAndType(), get_chunk->NameAndType());
+  EXPECT_EQ(chunk_data.Value(), get_chunk->Value());
 }
 
 TEST_F(BackendTest, BEH_PutChunkTwice) {
@@ -358,7 +358,7 @@ TEST_F(BackendTest, BEH_PutChunkTwice) {
   const ImmutableData chunk_data{MakeChunk()};
 
   EXPECT_CALL(GetNetworkMock(), DoPutChunk(_)).Times(2);
-  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.name())).Times(1);
+  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.NameAndType())).Times(1);
 
   auto put_chunk1 = network()->PutChunk(chunk_data, asio::use_future);
   auto put_chunk2 = network()->PutChunk(chunk_data, asio::use_future);
@@ -366,10 +366,10 @@ TEST_F(BackendTest, BEH_PutChunkTwice) {
   EXPECT_TRUE(put_chunk1.get().valid());
   EXPECT_TRUE(put_chunk2.get().valid());
 
-  const auto get_chunk = network()->GetChunk(chunk_data.name(), asio::use_future).get();
+  const auto get_chunk = network()->GetChunk(chunk_data.NameAndType(), asio::use_future).get();
   ASSERT_TRUE(get_chunk.valid());
-  EXPECT_EQ(chunk_data.name(), get_chunk->name());
-  EXPECT_EQ(chunk_data.data(), get_chunk->data());
+  EXPECT_EQ(chunk_data.NameAndType(), get_chunk->NameAndType());
+  EXPECT_EQ(chunk_data.Value(), get_chunk->Value());
 }
 
 TEST_F(BackendTest, BEH_InterfaceThrow) {
@@ -394,7 +394,9 @@ TEST_F(BackendTest, BEH_InterfaceThrow) {
       DoPutSDVVersion(container_key.GetId(), container_version, container_version))
     .Times(1).WillOnce(Throw(test_error));
   EXPECT_CALL(GetNetworkMock(), DoPutChunk(_)).Times(1).WillOnce(Throw(test_error));
-  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.name())).Times(1).WillOnce(Throw(test_error));
+  EXPECT_CALL(
+      GetNetworkMock(),
+      DoGetChunk(chunk_data.NameAndType())).Times(1).WillOnce(Throw(test_error));
 
   EXPECT_THROW(
       network()->CreateSDV(container_key.GetId(), container_version, asio::use_future),
@@ -405,7 +407,7 @@ TEST_F(BackendTest, BEH_InterfaceThrow) {
       std::error_code);
   EXPECT_THROW(network()->GetSDVVersions(container_key.GetId(), asio::use_future), std::error_code);
   EXPECT_THROW(network()->PutChunk(chunk_data, asio::use_future), std::error_code);
-  EXPECT_THROW(network()->GetChunk(chunk_data.name(), asio::use_future), std::error_code);
+  EXPECT_THROW(network()->GetChunk(chunk_data.NameAndType(), asio::use_future), std::error_code);
 }
 
 TEST_F(BackendTest, BEH_InterfaceErrors) {
@@ -438,7 +440,7 @@ TEST_F(BackendTest, BEH_InterfaceErrors) {
     .Times(1).WillOnce(Return(MakeFutureError<void>((test_error))));
   EXPECT_CALL(GetNetworkMock(), DoPutChunk(_))
     .Times(1).WillOnce(Return(MakeFutureError<void>(test_error)));
-  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.name()))
+  EXPECT_CALL(GetNetworkMock(), DoGetChunk(chunk_data.NameAndType()))
     .Times(1).WillOnce(Return(MakeFutureError<ImmutableData>(test_error)));
 
   auto void_return =
@@ -465,7 +467,7 @@ TEST_F(BackendTest, BEH_InterfaceErrors) {
   ASSERT_FALSE(void_return.valid());
   EXPECT_EQ(test_error, versions.error());
 
-  auto chunk = network()->GetChunk(chunk_data.name(), asio::use_future).get();
+  auto chunk = network()->GetChunk(chunk_data.NameAndType(), asio::use_future).get();
   ASSERT_FALSE(chunk.valid());
   EXPECT_EQ(test_error, chunk.error());
 }
